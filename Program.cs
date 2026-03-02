@@ -1,5 +1,7 @@
 using Discord;
+using Discord.Net;
 using Discord.WebSocket;
+using Newtonsoft.Json;
 using System;
 using System.IO;
 using System.Threading;
@@ -31,9 +33,7 @@ class Program
     // an asynchronous context from the beginning.
     public static async Task Main(string[] args)
     {
-        var root = Directory.GetCurrentDirectory();
-        var dotenv = Path.Combine(root, ".env");
-        DotEnv.Load(dotenv);
+        LoadEnvironment();
         // Config used by DiscordSocketClient
         // Define intents for the client
         // Note that GatewayIntents.MessageContent is a privileged intent, and requires extra setup in the developer portal.
@@ -49,8 +49,8 @@ class Program
         // Subscribing to client events, so that we may receive them whenever they're invoked.
         _client.Log += LogAsync;
         _client.Ready += ReadyAsync;
-        _client.MessageReceived += MessageReceivedAsync;
-        _client.InteractionCreated += InteractionCreatedAsync;
+        //_client.MessageReceived += MessageReceivedAsync;
+        //_client.InteractionCreated += InteractionCreatedAsync;
 
         
         // Tokens should be considered secret data, and never hard-coded.
@@ -71,48 +71,81 @@ class Program
 
     // The Ready event indicates that the client has opened a
     // connection and it is now safe to access the cache.
-    private static Task ReadyAsync()
+    private async static Task ReadyAsync()
     {
         Console.WriteLine($"{_client.CurrentUser} is connected!");
 
-        return Task.CompletedTask;
+        ////we only care about the server that this bot will be deployed into, the released bot will have the MLE server id in their environment.
+        //_client.GetGuild(ulong.Parse(Environment.GetEnvironmentVariable("GUILD_ID")!));
+
+        SlashCommandBuilder testCommand = new SlashCommandBuilder();
+        testCommand.WithName("testing").WithDescription("wowie!!! poggers").WithDefaultPermission(true);
+        
+
+        foreach (SocketGuild guild in _client.Guilds)
+        {
+            try
+            {
+                // Now that we have our builder, we can call the CreateApplicationCommandAsync method to make our slash command.
+                await guild.CreateApplicationCommandAsync(testCommand.Build());
+                // Using the ready event is a simple implementation for the sake of the example. Suitable for testing and development.
+                // For a production bot, it is recommended to only run the CreateGlobalApplicationCommandAsync() once for each command.
+            }
+            catch (HttpException exception)
+            {
+                // If our command was invalid, we should catch an ApplicationCommandException. This exception contains the path of the error as well as the error message. You can serialize the Error field in the exception to get a visual of where your error is.
+                var json = JsonConvert.SerializeObject(exception.Errors, Formatting.Indented);
+
+                // You can send this error somewhere or just print it to the console, for this example we're just going to print it.
+                Console.WriteLine(json);
+            }
+        }
+
+        //return Task.CompletedTask;
     }
 
-    // This is not the recommended way to write a bot - consider
-    // reading over the Commands Framework sample.
-    private static async Task MessageReceivedAsync(SocketMessage message)
+    //// This is not the recommended way to write a bot - consider
+    //// reading over the Commands Framework sample.
+    //private static async Task MessageReceivedAsync(SocketMessage message)
+    //{
+    //    // The bot should never respond to itself.
+    //    if (message.Author.Id == _client.CurrentUser.Id)
+    //        return;
+
+
+    //    if (message.Content == "!ping")
+    //    {
+    //        // Create a new ComponentBuilder, in which dropdowns & buttons can be created.
+    //        ComponentBuilder cb = new ComponentBuilder()
+    //            .WithButton("Click me!", "unique-id", ButtonStyle.Primary);
+
+    //        // Send a message with content 'pong', including a button.
+    //        // This button needs to be build by calling .Build() before being passed into the call.
+    //        await message.Channel.SendMessageAsync("pong!", components: cb.Build());
+    //    }
+    //}
+
+    //// For better functionality & a more developer-friendly approach to handling any kind of interaction, refer to:
+    //// https://discordnet.dev/guides/int_framework/intro.html
+    //private static async Task InteractionCreatedAsync(SocketInteraction interaction)
+    //{
+    //    // safety-casting is the best way to prevent something being cast from being null.
+    //    // If this check does not pass, it could not be cast to said type.
+    //    if (interaction is SocketMessageComponent component)
+    //    {
+    //        // Check for the ID created in the button mentioned above.
+    //        if (component.Data.CustomId == "unique-id")
+    //            await interaction.RespondAsync("Thank you for clicking my button!");
+
+    //        else
+    //            Console.WriteLine("An ID has been received that has no handler!");
+    //    }
+    //}
+
+    private static void LoadEnvironment()
     {
-        // The bot should never respond to itself.
-        if (message.Author.Id == _client.CurrentUser.Id)
-            return;
-
-
-        if (message.Content == "!ping")
-        {
-            // Create a new ComponentBuilder, in which dropdowns & buttons can be created.
-            ComponentBuilder cb = new ComponentBuilder()
-                .WithButton("Click me!", "unique-id", ButtonStyle.Primary);
-
-            // Send a message with content 'pong', including a button.
-            // This button needs to be build by calling .Build() before being passed into the call.
-            await message.Channel.SendMessageAsync("pong!", components: cb.Build());
-        }
-    }
-
-    // For better functionality & a more developer-friendly approach to handling any kind of interaction, refer to:
-    // https://discordnet.dev/guides/int_framework/intro.html
-    private static async Task InteractionCreatedAsync(SocketInteraction interaction)
-    {
-        // safety-casting is the best way to prevent something being cast from being null.
-        // If this check does not pass, it could not be cast to said type.
-        if (interaction is SocketMessageComponent component)
-        {
-            // Check for the ID created in the button mentioned above.
-            if (component.Data.CustomId == "unique-id")
-                await interaction.RespondAsync("Thank you for clicking my button!");
-
-            else
-                Console.WriteLine("An ID has been received that has no handler!");
-        }
+        var root = Directory.GetCurrentDirectory();
+        var dotenv = Path.Combine(root, "secrets.env");
+        DotEnv.Load(dotenv);
     }
 }
