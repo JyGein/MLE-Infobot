@@ -1,4 +1,4 @@
-# General commands
+# General commands - Anyone can run them to get information about the league
 
 **my-match**  
 Privately tells user who they are playing this week.  
@@ -24,6 +24,10 @@ Throws if (user is not on a team/role is not connected to a team).
 Commands that tell the user various game records.
 Commands to show previous weeks/seasons.
 
+# Team Captain commands - require TEAM_CAPTAIN_ROLE
+
+-- None for now!
+
 # Admin commands - require ADMIN_ROLE or guild administator privledges.
 
 ## Team management:
@@ -42,7 +46,7 @@ Throws if role is not attached to a team.
 Edit's an existing team's logo.  
 Throws if role is not attached to a team.
 
-add-squad <team-name: discord role> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user].  
+**add-squad <team-name: discord role> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user].**  
 Adds a squad to a team with the listed players.
 
 **edit-squad <team-name: discord role> <squad-number: int> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user]**  
@@ -92,3 +96,7 @@ Dangerous; public confirmation message.
 **publish-week [publish-channel: discord channel]**  
 Publishes the next week of the current season. Displays "New week!" message in (channel where command is ran/the publish-channel).  
 Semi-Dangerous; private confirmation message.
+
+**submit-matches <team: discord role> <squad: int>**  
+Gives an interaction prompting you to fill out the w/l for each member of the squad.  
+Throws if squad doesn't exist.
