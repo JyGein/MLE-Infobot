@@ -31,48 +31,51 @@ Commands to show previous weeks/seasons.
 # Admin commands - require ADMIN_ROLE or guild administator privledges.
 
 ## Team management:
-**add-team <new-team-name: discord role> <team-color: hex code> <team-logo: image link**  
+**add-team <new-team-name: discord role> <team-color: hex code> <team-logo: image link> <team-captain: discord user>**  
 Will add a team to the database which can have squads added to it.
 
-**edit-team-name <team-name: discord role> <team-name: string**  
+**edit-team-name <team-name: discord role> <team-name: string>**  
 Edit's an existing team's name.  
 Throws if role is not attached to a team.
 
-**edit-team-color <team-name: discord role> <team-color: hex code**  
+**edit-team-color <team-name: discord role> <team-color: hex code>**  
 Edit's an existing team's color.  
 Throws if role is not attached to a team.
 
-**edit-team-logo <team-name: discord role> <team-logo: image link**  
+**edit-team-logo <team-name: discord role> <team-logo: image link>**  
 Edit's an existing team's logo.  
 Throws if role is not attached to a team.
 
-**add-squad <team-name: discord role> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user].**  
-Adds a squad to a team with the listed players.
+**edit-team-captain <team-name: discord role> <team-captain: discord user>**  
+Edit's an existing team's captain.  
+Throws if role is not attached to a team.
 
-**edit-squad <team-name: discord role> <squad-number: int> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user]**  
+**add-squad <team-name: discord role> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user] [dont-randomize: bool]**  
+Adds a squad to a team with the listed players to the current unpublished season. Everytime a new squad is added it will randomize the matches unless dont-randomize is true (defaults to false).  
+Throws if team doesn't exist or if there isn't an unpublished season.
+
+**edit-squad <team-name: discord role> <squad-number: int> <season-number: int> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user]**  
 Changes the players on a team's squad.
 
-**subsitute <team-name: discord role> <squad-number: int> <player: discord user> <sub: discord user**  
-Substitutes the player with the sub for the week.  
+**subsitute <team-name: discord role> <squad-number: int> <player: discord user> <sub: discord user>**  
+Substitutes the player with the sub for the next week.  
 Throws if the sub or player are not in that squad and team.
 
-**remove-squad <team-name: discord role> <squad-number: int**  
-Removes the squad from the team.  
+**remove-squad <team-name: discord role> <squad-number: int> <season-number: int>**  
+Removes the squad from the season. If it removes it from the current season they will auto lose all their matches.  
 Dangerous; public confirmation message.  
-Throws if squad or team dont exist.  
-Note: Unsure what to do if the season has already started.
+Throws if squad or team dont exist or the season has already ended.
 
-**remove-team <team-name: discord role**  
-Removes the team from the league.  
+**remove-team <team-name: discord role>**  
+Unattaches the team from their role, the team will auto lose all their matches and the role will be freed up.  
 Dangerous; public confirmation message.  
-Throws if team doesn't exist.  
-Note: Unsure what to do if the season has already started.
+Throws if team doesn't exist.
 
 ## League management:
 **create-season <number-of-weeks: int>**.  
-Randomly pairs squads against other squads from different teams and shows the pairings and season number.  
-Backup: if there are not enough squads for the number of weeks will pair squads against already played squads instead of squads from the same team.  
+Creates a new blank season that squads can be added to.
 Throws if there is currently an unpublished season.
+Notes: This just assumes the playoffs will be Top 8 single elim can add more options in the future for config.
 
 **view-season [season-number: int]**  
 Shows all of the matches for the season. Defaults to current season.  
@@ -90,7 +93,7 @@ Swaps who is home and who is away for that squad's match for that season and wee
 Throws if season/week/team/squad doesn't exist.
 
 **publish-season [publish-channel: discord channel]**  
-Publishes the current unpublished season to be the current season and it's first week to be the current week. Displays "New season!" message in (channel where command is ran/the publish-channel).  
+Publishes the current unpublished season to be the current season and it's first week to be the current week. Displays "New season!" message in publish-channel, defaults to where the command is ran.  
 Dangerous; public confirmation message.
 
 **publish-week [publish-channel: discord channel]**  
@@ -98,5 +101,16 @@ Publishes the next week of the current season. Displays "New week!" message in (
 Semi-Dangerous; private confirmation message.
 
 **submit-matches <team: discord role> <squad: int>**  
-Gives an interaction prompting you to fill out the w/l for each member of the squad.  
+Gives an interaction prompting you to fill out the number of wins and loses for each member of the squad.  
 Throws if squad doesn't exist.
+
+
+### Formatting:
+
+**command-name <required-argument: arguement type> [optional-argument: arguement type]**  
+Command description.  
+Throws (why it'll show an error of the command not working)./  
+Dangerous; Sends a regular message in the channel where the command is ran asking for confirmation so at least the other admins know you ran a dangerous command.  
+Semi-Dangerous; Shows a private message asking for confirmation.  
+Admin: when the command might need admin perms based on arguements.  
+Notes: extraneous notes about development

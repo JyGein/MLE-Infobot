@@ -12,10 +12,6 @@
 
   <ItemGroup>
     <PackageReference Include="Discord.Net" Version="3.19.0" />
-    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Commands\" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.13" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,7 @@
 using Discord;
 using Discord.Net;
 using Discord.WebSocket;
+using MLE_Infobot.Commands;
 using Newtonsoft.Json;
 using System;
 using System.IO;
@@ -75,7 +76,7 @@ class Program
     {
         Console.WriteLine($"{_client.CurrentUser} is connected!");
 
-        await CommandHandler.CreateCommands(_client);
+        await CommandManager.CreateCommands(_client);
     }
 
     //// This is not the recommended way to write a bot - consider
@@ -116,6 +117,9 @@ class Program
     //    }
     //}
 
+    /// <summary>
+    /// Loads the environment variables from your secrets.env file.
+    /// </summary>
     private static void LoadEnvironment()
     {
         var root = Directory.GetCurrentDirectory();
