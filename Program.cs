@@ -29,6 +29,7 @@ class Program
 #nullable disable
     private static DiscordSocketClient _client;
 #nullable enable
+    public static LeagueDBContext LeagueDatabase = new();
 
     // Discord.Net heavily utilizes TAP for async, so we create
     // an asynchronous context from the beginning.

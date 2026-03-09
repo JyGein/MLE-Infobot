@@ -31,15 +31,11 @@ Commands to show previous weeks/seasons.
 # Admin commands - require ADMIN_ROLE or guild administator privledges.
 
 ## Team management:
-**add-team <new-team-name: discord role> <team-color: hex code> <team-logo: image link> <team-captain: discord user>**  
-Will add a team to the database which can have squads added to it.
+**add-team <new-team-name: discord role> <team-logo: image link> <team-captain: discord user>**  
+Adds a team to the league.
 
 **edit-team-name <team-name: discord role> <team-name: string>**  
 Edit's an existing team's name.  
-Throws if role is not attached to a team.
-
-**edit-team-color <team-name: discord role> <team-color: hex code>**  
-Edit's an existing team's color.  
 Throws if role is not attached to a team.
 
 **edit-team-logo <team-name: discord role> <team-logo: image link>**  

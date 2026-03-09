@@ -9,5 +9,5 @@ namespace MLE_Infobot.Commands;
 
 internal abstract class CommandBase
 {
-    public abstract Task RegisterCommand(SocketGuild guild);
+    public abstract Task RegisterCommand(DiscordSocketClient client, SocketGuild guild);
 }

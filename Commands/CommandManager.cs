@@ -12,7 +12,9 @@ namespace MLE_Infobot.Commands;
 
 internal class CommandManager
 {
-    public static List<CommandBase> Commands = [];
+    public static List<CommandBase> Commands = [
+        new AddTeam()
+        ];
     public static async Task CreateCommands(DiscordSocketClient client)
     {
         //We only care about the server that this bot will be deployed into, the released bot will have the MLE server id in their environment.
@@ -24,7 +26,7 @@ internal class CommandManager
             try
             {
                 // Now that we have our builder, we can call the CreateApplicationCommandAsync method to make our slash command.
-                await command.RegisterCommand(guild);
+                await command.RegisterCommand(client, guild);
                 // Using the ready event is a simple implementation for the sake of the example. Suitable for testing and development.
                 // For a production bot, it is recommended to only run the CreateGlobalApplicationCommandAsync() once for each command.
             }
