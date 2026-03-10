@@ -53,7 +53,6 @@ class Program
         _client.Ready += ReadyAsync;
         //_client.MessageReceived += MessageReceivedAsync;
         //_client.InteractionCreated += InteractionCreatedAsync;
-
         
         // Tokens should be considered secret data, and never hard-coded.
         await _client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("DISCORD_TOKEN"));

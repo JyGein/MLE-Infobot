@@ -26,21 +26,22 @@ internal class AddTeam : CommandBase
     internal async Task CommandExecuted(SocketSlashCommand slashCommand)
     {
         if (slashCommand.Data.Name != COMMANDNAME) return;
-        await slashCommand.DeferAsync(ephemeral: true);
+        //await slashCommand.DeferAsync(ephemeral: true);
 
         IRole teamRole = (IRole)slashCommand.Data.Options.ToList()[0].Value;
         IAttachment teamLogo = (IAttachment)slashCommand.Data.Options.ToList()[1].Value;
-        if (teamLogo.ContentType != "image")
+        if (!teamLogo.ContentType.Contains("image"))
         {
-            await slashCommand.RespondAsync("The team-logo must be an image!\nThe team was not created.");
+            Console.WriteLine(teamLogo.ContentType);
+            await slashCommand.RespondAsync("The team-logo must be an image!\nThe team was not created.", ephemeral: true);
             return;
         }
         IUser teamCaptain = (IUser)slashCommand.Data.Options.ToList()[2].Value;
-        await Program.LeagueDatabase.AddAsync(new Team { TeamCaptain = teamCaptain, TeamLogo = teamLogo, TeamRole = teamRole });
+        await Program.LeagueDatabase.AddAsync(new Team { TeamCaptainID = teamCaptain.Id, TeamLogoURL = teamLogo.Url, TeamRoleID = teamRole.Id });
         await Program.LeagueDatabase.SaveChangesAsync();
         Console.WriteLine("New team created");
         Console.WriteLine($"Team name: {teamRole.Name}\nTeam logo: {teamLogo.Url}\nTeam captain: {teamCaptain.GlobalName}");
-        await slashCommand.FollowupAsync("New team added to the league!", ephemeral: true, embed: new EmbedBuilder()
+        await slashCommand.RespondAsync("New team added to the league!", ephemeral: true, embed: new EmbedBuilder()
             .WithTitle(teamRole.Mention)
             .WithColor(teamRole.Color)
             .WithImageUrl(teamLogo.Url)

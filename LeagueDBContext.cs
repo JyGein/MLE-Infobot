@@ -29,12 +29,13 @@ internal class LeagueDBContext : DbContext
 
 internal class Season
 {
-
+    public int SeasonId { get; set; }
 }
 
 internal class Team
 {
-    public required IRole TeamRole { get; set; }
-    public required IAttachment TeamLogo { get; set; }
-    public required IUser TeamCaptain { get; set; }
+    public int TeamId { get; set; }
+    public required ulong TeamRoleID { get; set; }
+    public required string TeamLogoURL { get; set; }
+    public required ulong TeamCaptainID { get; set; }
 }
