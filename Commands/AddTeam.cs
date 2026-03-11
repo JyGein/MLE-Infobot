@@ -27,6 +27,7 @@ internal class AddTeam : CommandBase
     {
         if (slashCommand.Data.Name != COMMANDNAME) return;
         //await slashCommand.DeferAsync(ephemeral: true);
+        //NEED TO CHECK FOR LEAGUE ADMIN PERMS AND IF THE TEAM HAS ALREADY BEEN CREATED
 
         IRole teamRole = (IRole)slashCommand.Data.Options.ToList()[0].Value;
         IAttachment teamLogo = (IAttachment)slashCommand.Data.Options.ToList()[1].Value;
