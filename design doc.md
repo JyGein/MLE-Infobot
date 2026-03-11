@@ -8,15 +8,15 @@ Throws if the user is not on a squad.
 Privately tells the user who that player is playing this week.  
 Throws if player is not playing this week.
 
-**squad-matches <team-name: discord role> <squad-number: int>**  
+**squad-matches <team-role: discord role> <squad-number: int>**  
 Privately tells the user who that squad is playing this week.  
 Throws if squad does not exist.
 
-**team-matches <team-name: discord role>**  
+**team-matches <team-role: discord role>**  
 Privately tells the user who that team is playing this week.  
 Throws if team does not exist.
 
-**team-season [team-name: discord role]**  
+**team-season [team-role: discord role]**  
 Privately tells the user (their team/inputted team)'s season matchups.  
 Throws if (user is not on a team/role is not connected to a team).
 
@@ -31,38 +31,39 @@ Commands to show previous weeks/seasons.
 # Admin commands - require ADMIN_ROLE or guild administator privledges.
 
 ## Team management:
-**add-team <new-team-name: discord role> <team-logo: image link> <team-captain: discord user>**  
+**add-team <team-role: discord role> <team-name: string> <team-logo: image link> <team-captain: discord user>**  
 Adds a team to the league.
+Throws if team already exists.
 
-**edit-team-name <team-name: discord role> <team-name: string>**  
+**edit-team-name <team-role: discord role> <team-name: string>**  
 Edit's an existing team's name.  
 Throws if role is not attached to a team.
 
-**edit-team-logo <team-name: discord role> <team-logo: image link>**  
+**edit-team-logo <team-role: discord role> <team-logo: image link>**  
 Edit's an existing team's logo.  
 Throws if role is not attached to a team.
 
-**edit-team-captain <team-name: discord role> <team-captain: discord user>**  
+**edit-team-captain <team-role: discord role> <team-captain: discord user>**  
 Edit's an existing team's captain.  
 Throws if role is not attached to a team.
 
-**add-squad <team-name: discord role> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user] [dont-randomize: bool]**  
+**add-squad <team-role: discord role> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user] [dont-randomize: bool]**  
 Adds a squad to a team with the listed players to the current unpublished season. Everytime a new squad is added it will randomize the matches unless dont-randomize is true (defaults to false).  
 Throws if team doesn't exist or if there isn't an unpublished season.
 
-**edit-squad <team-name: discord role> <squad-number: int> <season-number: int> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user]**  
+**edit-squad <team-role: discord role> <squad-number: int> <season-number: int> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user]**  
 Changes the players on a team's squad.
 
-**subsitute <team-name: discord role> <squad-number: int> <player: discord user> <sub: discord user>**  
+**subsitute <team-role: discord role> <squad-number: int> <player: discord user> <sub: discord user>**  
 Substitutes the player with the sub for the next week.  
 Throws if the sub or player are not in that squad and team.
 
-**remove-squad <team-name: discord role> <squad-number: int> <season-number: int>**  
+**remove-squad <team-role: discord role> <squad-number: int> <season-number: int>**  
 Removes the squad from the season. If it removes it from the current season they will auto lose all their matches.  
 Dangerous; public confirmation message.  
 Throws if squad or team dont exist or the season has already ended.
 
-**remove-team <team-name: discord role>**  
+**remove-team <team-role: discord role>**  
 Unattaches the team from their role, the team will auto lose all their matches and the role will be freed up.  
 Dangerous; public confirmation message.  
 Throws if team doesn't exist.

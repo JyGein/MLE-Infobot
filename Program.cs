@@ -27,7 +27,7 @@ class Program
     // Non-static readonly fields can only be assigned in a constructor.
     // If you want to assign it elsewhere, consider removing the readonly keyword.
 #nullable disable
-    private static DiscordSocketClient _client;
+    public static DiscordSocketClient client;
 #nullable enable
     public static LeagueDBContext LeagueDatabase = new();
 
@@ -46,19 +46,19 @@ class Program
 
         // It is recommended to Dispose of a client when you are finished
         // using it, at the end of your app's lifetime.
-        _client = new DiscordSocketClient(config);
+        client = new DiscordSocketClient(config);
 
         // Subscribing to client events, so that we may receive them whenever they're invoked.
-        _client.Log += LogAsync;
-        _client.Ready += ReadyAsync;
+        client.Log += LogAsync;
+        client.Ready += ReadyAsync;
         //_client.MessageReceived += MessageReceivedAsync;
         //_client.InteractionCreated += InteractionCreatedAsync;
         
         // Tokens should be considered secret data, and never hard-coded.
-        await _client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("DISCORD_TOKEN"));
+        await client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("DISCORD_TOKEN"));
         // Different approaches to making your token a secret is by putting them in local .json, .yaml, .xml or .txt files, then reading them on startup.
 
-        await _client.StartAsync();
+        await client.StartAsync();
 
         // Block the program until it is closed.
         await Task.Delay(Timeout.Infinite);
@@ -74,9 +74,9 @@ class Program
     // connection and it is now safe to access the cache.
     private async static Task ReadyAsync()
     {
-        Console.WriteLine($"{_client.CurrentUser} is connected!");
+        Console.WriteLine($"{client.CurrentUser} is connected!");
 
-        await CommandManager.CreateCommands(_client);
+        await CommandManager.CreateCommands(client);
     }
 
     //// This is not the recommended way to write a bot - consider

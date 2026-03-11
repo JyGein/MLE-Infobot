@@ -10,4 +10,13 @@ namespace MLE_Infobot.Commands;
 internal abstract class CommandBase
 {
     public abstract Task RegisterCommand(DiscordSocketClient client, SocketGuild guild);
+
+    public static bool IsAdmin(SocketSlashCommand slashCommand)
+    {
+        SocketGuild guild = Program.client.GetGuild(ulong.Parse(Environment.GetEnvironmentVariable("GUILD_ID")!));
+        SocketGuildUser user = guild.GetUser(slashCommand.User.Id);
+        if (user.GuildPermissions.Administrator) return true;
+        if (user.Roles.Any(role => role.Id == ulong.Parse(Environment.GetEnvironmentVariable("ADMIN_ROLE")!))) return true;
+        return false;
+    }
 }

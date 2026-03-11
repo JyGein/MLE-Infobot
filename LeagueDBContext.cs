@@ -30,12 +30,83 @@ internal class LeagueDBContext : DbContext
 internal class Season
 {
     public int SeasonId { get; set; }
+    public required int SeasonNumber { get; set; }
+    public List<Squad> Squads { get; } = [];
+    public List<SeasonWeek> SeasonWeeks { get; } = [];
+    public List<PlayoffWeek> PlayoffWeeks { get; } = [];
+    public required int NumberOfSeasonWeeks { get; set; }
 }
 
 internal class Team
 {
     public int TeamId { get; set; }
     public required ulong TeamRoleID { get; set; }
+    public required string TeamName { get; set; }
     public required string TeamLogoURL { get; set; }
     public required ulong TeamCaptainID { get; set; }
+    public bool Unlinked { get; set; } = false;
+}
+
+internal class Squad
+{
+    public int SquadId { get; set; }
+    public int TeamId { get; set; }
+    public required Team Team { get; set; }
+    public int SeasonId { get; set; }
+    public required Season Season { get; set; }
+    public List<ulong> PlayerIDs { get; } = [];
+    public List<ulong> SubstituteIDs { get; } = [];
+}
+
+internal class Week
+{
+    public int WeekId { get; set; }
+    public required int WeekNumber { get; set; }
+    public int SeasonId { get; set; }
+    public required Season Season { get; set; }
+    public List<Match> Matches { get; } = [];
+    /// <summary>
+    /// This week's random mapping of a matches 1st squad's 1st, 2nd, and 3rd players to the 2nd squad's players.
+    /// I feel like this could be phrased better.
+    /// </summary>
+    public int[] Players123Mappings { get; } = [1, 2, 3];
+}
+
+internal class SeasonWeek : Week
+{
+
+}
+
+internal class PlayoffWeek : Week
+{
+
+}
+
+internal class Match
+{
+    public int MatchId { get; set; }
+    public int WeekId { get; set; }
+    public required Week Week { get; set; }
+    public int HomeSquadId { get; set; }
+    public required Squad HomeSquad { get; set; }
+    public int AwaySquadId { get; set; }
+    public required Squad AwaySquad { get; set; }
+    public List<Game> Games { get; } = [];
+    public List<Substitution> Substitutions { get; } = [];
+}
+
+internal class Substitution
+{
+    public int SubstitutionId { get; set; }
+    public required ulong PlayerID { get; set; }
+    public required ulong SubstituteID { get; set; }
+}
+
+internal class Game
+{
+    public int GameId { get; set; }
+    public required ulong HomePlayerID { get; set; }
+    public required ulong AwayPlayerID { get; set; }
+    public int HomePlayerWins { get; set; } = 0;
+    public int AwayPlayerWins { get; set; } = 0;
 }
