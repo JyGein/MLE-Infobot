@@ -27,7 +27,8 @@ class Program
     // Non-static readonly fields can only be assigned in a constructor.
     // If you want to assign it elsewhere, consider removing the readonly keyword.
 #nullable disable
-    public static DiscordSocketClient client;
+    public static DiscordSocketClient Client;
+    public static SocketGuild Guild;
 #nullable enable
     public static LeagueDBContext LeagueDatabase = new();
 
@@ -46,19 +47,19 @@ class Program
 
         // It is recommended to Dispose of a client when you are finished
         // using it, at the end of your app's lifetime.
-        client = new DiscordSocketClient(config);
+        Client = new DiscordSocketClient(config);
 
         // Subscribing to client events, so that we may receive them whenever they're invoked.
-        client.Log += LogAsync;
-        client.Ready += ReadyAsync;
+        Client.Log += LogAsync;
+        Client.Ready += ReadyAsync;
         //_client.MessageReceived += MessageReceivedAsync;
         //_client.InteractionCreated += InteractionCreatedAsync;
         
         // Tokens should be considered secret data, and never hard-coded.
-        await client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("DISCORD_TOKEN"));
+        await Client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("DISCORD_TOKEN"));
         // Different approaches to making your token a secret is by putting them in local .json, .yaml, .xml or .txt files, then reading them on startup.
 
-        await client.StartAsync();
+        await Client.StartAsync();
 
         // Block the program until it is closed.
         await Task.Delay(Timeout.Infinite);
@@ -74,9 +75,11 @@ class Program
     // connection and it is now safe to access the cache.
     private async static Task ReadyAsync()
     {
-        Console.WriteLine($"{client.CurrentUser} is connected!");
+        Console.WriteLine($"{Client.CurrentUser} is connected!");
 
-        await CommandManager.CreateCommands(client);
+        Guild = Client.GetGuild(ulong.Parse(Environment.GetEnvironmentVariable("GUILD_ID")!));
+
+        await CommandManager.CreateCommands(Client);
     }
 
     //// This is not the recommended way to write a bot - consider

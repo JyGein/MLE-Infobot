@@ -8,25 +8,21 @@ using System.Threading.Tasks;
 
 namespace MLE_Infobot.Commands;
 
-internal class AddTeam : CommandBase
+internal class EditTeamLogo : CommandBase
 {
-    const string COMMANDNAME = "add-team";
+    const string COMMANDNAME = "edit-team-logo";
 
     const string TEAMROLEOPTIONNAME = "team-role";
-    const string TEAMNAMEOPTIONNAME = "team-name";
     const string TEAMLOGOOPTIONNAME = "team-logo";
-    const string TEAMCAPTAINOPTIONNAME = "team-captain";
 
     public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
     {
         client.SlashCommandExecuted += CommandExecuted;
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
-            .WithDescription("Adds a team to the league. Will fail if you are not a league admin.")
-            .AddOption(TEAMROLEOPTIONNAME, ApplicationCommandOptionType.Role, "The discord role of the new team.", isRequired: true)
-            .AddOption(TEAMNAMEOPTIONNAME, ApplicationCommandOptionType.String, "The name of the new team.", isRequired: true)
-            .AddOption(TEAMLOGOOPTIONNAME, ApplicationCommandOptionType.Attachment, "The logo of the new team.", isRequired: true)
-            .AddOption(TEAMCAPTAINOPTIONNAME, ApplicationCommandOptionType.User, "The discord user who is the captain of the new team.", isRequired: true)
+            .WithDescription("Edit's an existing team's logo. Will fail if you are not a league admin.")
+            .AddOption(TEAMROLEOPTIONNAME, ApplicationCommandOptionType.Role, "The discord role of the team.", isRequired: true)
+            .AddOption(TEAMLOGOOPTIONNAME, ApplicationCommandOptionType.Attachment, "The new logo of the team.", isRequired: true)
             .Build());
     }
 
@@ -41,28 +37,27 @@ internal class AddTeam : CommandBase
         await slashCommand.DeferAsync(ephemeral: true);
 
         IRole teamRole = (IRole)slashCommand.Data.Options.First(o => o.Name == TEAMROLEOPTIONNAME).Value;
-        if (Program.LeagueDatabase.Teams.Any(team => team.TeamRoleID == teamRole.Id))
+        if (Program.LeagueDatabase.Teams.FirstOrDefault(team => team.TeamRoleID == teamRole.Id) is not Team team)
         {
-            await slashCommand.RespondAsync("That role is already linked to a team!", ephemeral: true);
+            await slashCommand.RespondAsync("That role is not linked to a team!", ephemeral: true);
             return;
         }
-        string teamName = (string)slashCommand.Data.Options.First(o => o.Name == TEAMNAMEOPTIONNAME).Value;
+
         IAttachment teamLogo = (IAttachment)slashCommand.Data.Options.First(o => o.Name == TEAMLOGOOPTIONNAME).Value;
         if (!teamLogo.ContentType.Contains("image"))
         {
             await slashCommand.RespondAsync("The team-logo must be an image!\nThe team was not created.", ephemeral: true);
             return;
         }
-        IUser teamCaptain = (IUser)slashCommand.Data.Options.First(o => o.Name == TEAMCAPTAINOPTIONNAME).Value;
+        string oldTeamLogo = team.TeamLogoURL;
 
-        Team team = new() { TeamCaptainID = teamCaptain.Id, TeamName = teamName, TeamLogoURL = teamLogo.Url, TeamRoleID = teamRole.Id };
-        await Program.LeagueDatabase.AddAsync(team);
+        team.TeamLogoURL = teamLogo.Url;
         await Program.LeagueDatabase.SaveChangesAsync();
 
-        Console.WriteLine($"New team created:\nTeam name: {teamName}\nTeam logo: {teamLogo.Url}\nTeam captain: {teamCaptain.GlobalName ?? teamCaptain.Username}");
+        Console.WriteLine($"{team.TeamName} logo was changed from {oldTeamLogo} to {teamLogo.Url}.");
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
         {
-            mp.Content = "New team added to the league!";
+            mp.Content = $"Successfully changed their logo!";
             mp.Embeds = new Embed[] { (await team.GetDefaultEmbed()).Build() };
         });
     }

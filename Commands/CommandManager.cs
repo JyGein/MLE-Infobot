@@ -13,12 +13,15 @@ namespace MLE_Infobot.Commands;
 internal class CommandManager
 {
     public static List<CommandBase> Commands = [
-        new AddTeam()
+        new AddTeam(),
+        new EditTeamName(),
+        new EditTeamLogo(),
+        new EditTeamCaptain()
         ];
     public static async Task CreateCommands(DiscordSocketClient client)
     {
         //We only care about the server that this bot will be deployed into, the released bot will have the MLE server id in their environment.
-        SocketGuild guild = client.GetGuild(ulong.Parse(Environment.GetEnvironmentVariable("GUILD_ID")!));
+        SocketGuild guild = Program.Guild;
         await guild.DeleteApplicationCommandsAsync();
         
         foreach (CommandBase command in Commands)

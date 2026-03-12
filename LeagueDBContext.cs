@@ -1,4 +1,5 @@
 ﻿using Discord;
+using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -45,6 +46,16 @@ internal class Team
     public required string TeamLogoURL { get; set; }
     public required ulong TeamCaptainID { get; set; }
     public bool Unlinked { get; set; } = false;
+
+    public async Task<EmbedBuilder> GetDefaultEmbed()
+    {
+        SocketGuildUser teamCaptain = Program.Guild.GetUser(TeamCaptainID);
+        return new EmbedBuilder()
+            .WithTitle(TeamName)
+            .WithColor((await Program.Guild.GetRoleAsync(TeamRoleID)).Color)
+            .WithImageUrl(TeamLogoURL)
+            .WithDescription($"Team Captain: {teamCaptain.GlobalName ?? teamCaptain.Username}");
+    }
 }
 
 internal class Squad
