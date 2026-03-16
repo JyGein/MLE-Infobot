@@ -39,7 +39,10 @@ internal class EditTeamCaptain : CommandBase
         IRole teamRole = (IRole)slashCommand.Data.Options.First(o => o.Name == TEAMROLEOPTIONNAME).Value;
         if (Program.LeagueDatabase.Teams.FirstOrDefault(team => team.TeamRoleID == teamRole.Id) is not Team team)
         {
-            await slashCommand.RespondAsync("That role is not linked to a team!", ephemeral: true);
+            await slashCommand.ModifyOriginalResponseAsync((mp) =>
+            {
+                mp.Content = "That role is not linked to a team!";
+            });
             return;
         }
 

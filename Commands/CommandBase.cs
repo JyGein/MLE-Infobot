@@ -1,13 +1,15 @@
-﻿using Discord.WebSocket;
+﻿using Discord;
+using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace MLE_Infobot.Commands;
 
-internal abstract class CommandBase
+internal abstract partial class CommandBase
 {
     public abstract Task RegisterCommand(DiscordSocketClient client, SocketGuild guild);
 
@@ -19,4 +21,7 @@ internal abstract class CommandBase
         if (user.Roles.Any(role => role.Id == ulong.Parse(Environment.GetEnvironmentVariable("ADMIN_ROLE")!))) return true;
         return false;
     }
+
+    [GeneratedRegex("[\\w-]+:(yes|no):(\\d+)")]
+    internal static partial Regex ComponentIdPattern();
 }

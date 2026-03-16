@@ -43,14 +43,20 @@ internal class AddTeam : CommandBase
         IRole teamRole = (IRole)slashCommand.Data.Options.First(o => o.Name == TEAMROLEOPTIONNAME).Value;
         if (Program.LeagueDatabase.Teams.Any(team => team.TeamRoleID == teamRole.Id))
         {
-            await slashCommand.RespondAsync("That role is already linked to a team!", ephemeral: true);
+            await slashCommand.ModifyOriginalResponseAsync((mp) =>
+            {
+                mp.Content = "That role is already linked to a team!";
+            });
             return;
         }
         string teamName = (string)slashCommand.Data.Options.First(o => o.Name == TEAMNAMEOPTIONNAME).Value;
         IAttachment teamLogo = (IAttachment)slashCommand.Data.Options.First(o => o.Name == TEAMLOGOOPTIONNAME).Value;
         if (!teamLogo.ContentType.Contains("image"))
         {
-            await slashCommand.RespondAsync("The team-logo must be an image!\nThe team was not created.", ephemeral: true);
+            await slashCommand.ModifyOriginalResponseAsync((mp) =>
+            {
+                mp.Content = "The team-logo must be an image!\nThe team was not created.";
+            });
             return;
         }
         IUser teamCaptain = (IUser)slashCommand.Data.Options.First(o => o.Name == TEAMCAPTAINOPTIONNAME).Value;

@@ -16,7 +16,8 @@ internal class CommandManager
         new AddTeam(),
         new EditTeamName(),
         new EditTeamLogo(),
-        new EditTeamCaptain()
+        new EditTeamCaptain(),
+        new RemoveTeam()
         ];
     public static async Task CreateCommands(DiscordSocketClient client)
     {

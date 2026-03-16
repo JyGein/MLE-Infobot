@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -30,12 +31,65 @@ internal class LeagueDBContext : DbContext
 
 internal class Season
 {
+    public enum SeasonState
+    {
+        Unpublished,
+        Started,
+        Finished
+    }
     public int SeasonId { get; set; }
     public required int SeasonNumber { get; set; }
     public List<Squad> Squads { get; } = [];
     public List<SeasonWeek> SeasonWeeks { get; } = [];
     public List<PlayoffWeek> PlayoffWeeks { get; } = [];
     public required int NumberOfSeasonWeeks { get; set; }
+    public required SeasonState State { get; set; }
+
+    public async Task RandomizeMatches()
+    {
+        //this should never happen but just in case, since this is dangerous to do on an in-progress season as it clears all season weeks
+        if (State != SeasonState.Unpublished) return;
+        SeasonWeeks.Clear();
+        //making seed from squad ids as it will be usually be unique each time they are randomized
+        Random rnd = new(Squads.Select(s => s.SquadId).Sum());
+        for (int i = 1; i <= NumberOfSeasonWeeks; i++)
+        {
+            SeasonWeek week = new() { Season = this, WeekNumber = i };
+            List<Squad> unmatchedSquads = [.. Squads];
+            unmatchedSquads = [..unmatchedSquads.Shuffle(rnd)];
+            while (unmatchedSquads.Count > 1)
+            {
+                week.Matches.Add(new() { HomeSquad = unmatchedSquads.Pop(), AwaySquad = unmatchedSquads.Pop(), Week = week });
+            }
+            //reshuffling matches where two squads from the same team play each other if possible
+            foreach (Match doubleTeamMatch in week.Matches.Where(m => m.AwaySquad == m.HomeSquad))
+            {
+                //making sure that the match still has a double team issue as another duped team could have swapped with this match before we've iterated to this one
+                if (doubleTeamMatch.HomeSquad.Team != doubleTeamMatch.AwaySquad.Team) continue;
+                Team dupedTeam = doubleTeamMatch.HomeSquad.Team;
+                //if there is match where neither squad is from the team swap with it, otherwise check if there is an unpaired squad to swap with
+                if (week.Matches.Shuffle(rnd).FirstOrDefault(m => m.AwaySquad.Team != dupedTeam && m.HomeSquad.Team != dupedTeam) is Match targetMatch)
+                {
+                    bool swappingAwaySquads = rnd.Next() % 2 == 0;
+                    Squad tempSquad = swappingAwaySquads ? targetMatch.AwaySquad : targetMatch.HomeSquad;
+                    if (swappingAwaySquads) targetMatch.AwaySquad = swappingAwaySquads ? doubleTeamMatch.AwaySquad : doubleTeamMatch.HomeSquad;
+                    else targetMatch.HomeSquad = swappingAwaySquads ? doubleTeamMatch.AwaySquad : doubleTeamMatch.HomeSquad;
+                    if (swappingAwaySquads) doubleTeamMatch.AwaySquad = tempSquad;
+                    else doubleTeamMatch.HomeSquad = tempSquad;
+                }
+                else if (unmatchedSquads.Count > 0 && unmatchedSquads.First().Team != dupedTeam)
+                {
+                    bool swappingAwaySquad = rnd.Next() % 2 == 0;
+                    Squad tempSquad = swappingAwaySquad ? doubleTeamMatch.AwaySquad : doubleTeamMatch.HomeSquad;
+                    if (swappingAwaySquad) doubleTeamMatch.AwaySquad = unmatchedSquads.Pop();
+                    else doubleTeamMatch.HomeSquad = unmatchedSquads.Pop();
+                    unmatchedSquads.Add(tempSquad);
+                }
+            }
+            SeasonWeeks.Add(week);
+        }
+        await Program.LeagueDatabase.SaveChangesAsync();
+    }
 }
 
 internal class Team
@@ -95,6 +149,12 @@ internal class PlayoffWeek : Week
 
 internal class Match
 {
+    public enum MatchState
+    {
+        Undecided,
+        Home,
+        Away
+    }
     public int MatchId { get; set; }
     public int WeekId { get; set; }
     public required Week Week { get; set; }
@@ -104,6 +164,7 @@ internal class Match
     public required Squad AwaySquad { get; set; }
     public List<Game> Games { get; } = [];
     public List<Substitution> Substitutions { get; } = [];
+    public MatchState Winner { get; set; } = MatchState.Undecided;
 }
 
 internal class Substitution
