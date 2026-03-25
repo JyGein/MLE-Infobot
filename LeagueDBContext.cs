@@ -3,6 +3,7 @@ using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Principal;
@@ -41,6 +42,7 @@ internal class Season
     public int SeasonId { get; set; }
     public required long SeasonNumber { get; set; }
     public List<Squad> Squads { get; } = [];
+    [NotMapped]
     public List<Week> AllWeeks => [.. SeasonWeeks, .. PlayoffWeeks];
     public List<SeasonWeek> SeasonWeeks { get; } = [];
     public List<PlayoffWeek> PlayoffWeeks { get; } = [];

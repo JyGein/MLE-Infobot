@@ -2,6 +2,7 @@
 using MLE_Infobot;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -9,9 +10,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MLE_Infobot.Migrations
 {
     [DbContext(typeof(LeagueDBContext))]
-    partial class LeagueDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260325211945_League-v0-0-3")]
+    partial class Leaguev003
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.13");
