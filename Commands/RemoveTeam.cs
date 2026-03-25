@@ -96,6 +96,11 @@ internal partial class RemoveTeam : CommandBase
             await messageComponent.RespondAsync("This is not your interaction!", ephemeral: true);
             return;
         }
+        if (team.Unlinked == true)
+        {
+            await messageComponent.RespondAsync("Team already unlinked.", ephemeral: true);
+            return;
+        }
 
         if (confirmationKey == "no")
         {

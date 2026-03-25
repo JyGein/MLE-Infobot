@@ -20,6 +20,11 @@ Throws if team does not exist.
 Privately tells the user (their team/inputted team)'s season matchups.  
 Throws if (user is not on a team/role is not connected to a team).
 
+**view-season [season-number: int]**  
+Shows all of the matches for the season. Defaults to current season.  
+Admin: Requires admin perms to display a season not published.  
+Throws if season does not exist.
+
 ### FUTURE:
 Commands that tell the user various game records.
 Commands to show previous weeks/seasons.
@@ -47,21 +52,20 @@ Throws if role is not attached to a team.
 Edit's an existing team's captain.  
 Throws if role is not attached to a team.
 
-**add-squad <team-role: discord role> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user] [dont-randomize: bool]**  
-Adds a squad to a team with the listed players to the current unpublished season. Everytime a new squad is added it will randomize the matches unless dont-randomize is true (defaults to false).  
+**add-squad <team-role: discord role> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user]**  
+Adds a squad to a team with the listed players to the current unpublished season. Everytime a new squad is added it will randomize the matches.  
 Throws if team doesn't exist or if there isn't an unpublished season.
 
-**edit-squad <team-role: discord role> <squad-number: int> <season-number: int> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user]**  
-Changes the players on a team's squad.
+**edit-squad <team-role: discord role> <squad-number: int> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user]**  
+Changes the players on a team's squad in the current unpublished season.
 
-**subsitute <team-role: discord role> <squad-number: int> <player: discord user> <sub: discord user>**  
-Substitutes the player with the sub for the next week.  
+**subsitute <team-role: discord role> <squad-number: int> <player: discord user> <sub: discord user> [week-number: int]**  
+Substitutes the player with the sub for the current season. Defaults to the next week.  
 Throws if the sub or player are not in that squad and team.
 
-**remove-squad <team-role: discord role> <squad-number: int> <season-number: int>**  
-Removes the squad from the season. If it removes it from the current season they will auto lose all their matches.  
-Dangerous; public confirmation message.  
-Throws if squad or team dont exist or the season has already ended.
+**remove-squad <team-role: discord role> <squad-number: int>**  
+Removes the squad from the unpublished season.  
+Throws if squad or team dont exist.
 
 **remove-team <team-role: discord role>**  
 Unattaches the team from their role, the team will auto lose all their matches and the role will be freed up.  
@@ -73,12 +77,6 @@ Throws if team doesn't exist.
 Creates a new blank season that squads can be added to.
 Throws if there is currently an unpublished season.
 Notes: This just assumes the playoffs will be Top 8 single elim can add more options in the future for config.
-
-**view-season [season-number: int]**  
-Shows all of the matches for the season. Defaults to current season.  
-Admin: Requires admin perms to display a season not published.  
-Note: Entire command will be admin-only for now because it will take a good amount of extra effort to display it nicely.  
-Throws if season does not exist.
 
 **swap-matchup <season-number: int> <week-number: int> <team1: discord role> <squad1: int> <team2: discord role> <squad2: int>**  
 Swaps two squad's matchup for that season and week.  
@@ -94,7 +92,7 @@ Publishes the current unpublished season to be the current season and it's first
 Dangerous; public confirmation message.
 
 **publish-week [publish-channel: discord channel]**  
-Publishes the next week of the current season. Displays "New week!" message in (channel where command is ran/the publish-channel).  
+Publishes the next week of the current season. Displays "New week!" message in publish-channel, defaults to channel where message is sent.  
 Semi-Dangerous; private confirmation message.
 
 **submit-matches <team: discord role> <squad: int>**  

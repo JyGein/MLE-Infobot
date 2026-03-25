@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
@@ -42,7 +43,7 @@ internal class Season
     public List<Squad> Squads { get; } = [];
     public List<SeasonWeek> SeasonWeeks { get; } = [];
     public List<PlayoffWeek> PlayoffWeeks { get; } = [];
-    public required int NumberOfSeasonWeeks { get; set; }
+    public required long NumberOfSeasonWeeks { get; set; }
     public required SeasonState State { get; set; }
 
     public async Task RandomizeMatches()
@@ -107,20 +108,39 @@ internal class Team
         return new EmbedBuilder()
             .WithTitle(TeamName)
             .WithColor((await Program.Guild.GetRoleAsync(TeamRoleID)).Color)
-            .WithImageUrl(TeamLogoURL)
-            .WithDescription($"Team Captain: {teamCaptain.GlobalName ?? teamCaptain.Username}");
+            .WithThumbnailUrl(TeamLogoURL)
+            .WithDescription($"Team Captain: {teamCaptain.Nickname ?? teamCaptain.Username}");
     }
 }
 
 internal class Squad
 {
     public int SquadId { get; set; }
+    public required int SquadNumber { get; set; }
     public int TeamId { get; set; }
     public required Team Team { get; set; }
     public int SeasonId { get; set; }
     public required Season Season { get; set; }
     public List<ulong> PlayerIDs { get; } = [];
     public List<ulong> SubstituteIDs { get; } = [];
+
+    public async Task<EmbedBuilder> GetDefaultEmbed()
+    {
+        List<EmbedFieldBuilder> fields = [new EmbedFieldBuilder()
+            .WithName("Players:")
+            .WithValue(string.Join("\n", PlayerIDs.Select(id => Program.Guild.GetUser(id).DisplayName)))];
+        if (SubstituteIDs.Count > 0)
+        {
+            fields.Add(new EmbedFieldBuilder()
+            .WithName("Substitutes:")
+            .WithValue(string.Join("\n", SubstituteIDs.Select(id => Program.Guild.GetUser(id).DisplayName))));
+        }
+        return new EmbedBuilder()
+            .WithTitle($"{Team.TeamName} - Squad {SquadNumber}")
+            .WithColor((await Program.Guild.GetRoleAsync(Team.TeamRoleID)).Color)
+            .WithThumbnailUrl(Team.TeamLogoURL)
+            .WithFields(fields);
+    }
 }
 
 internal class Week
