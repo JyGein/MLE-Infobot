@@ -24,4 +24,9 @@ internal abstract partial class CommandBase
 
     [GeneratedRegex("[\\w-]+:(yes|no):(\\d+)")]
     internal static partial Regex ComponentIdPattern();
+
+    internal class Messages
+    {
+        internal const string REQUIRESADMIN = "Requires league administrator priviledges.";
+    }
 }

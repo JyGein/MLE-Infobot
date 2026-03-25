@@ -25,7 +25,7 @@ internal partial class RemoveTeam : CommandBase
         client.ButtonExecuted += ButtonClicked;
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
-            .WithDescription("Unlinks the team from their role. Will fail if you are not a league admin.")
+            .WithDescription($"Unlinks the team from their role. {Messages.REQUIRESADMIN}")
             .AddOption(TEAMROLEOPTIONNAME, ApplicationCommandOptionType.Role, "The discord role of the team.", isRequired: true)
             .Build());
     }

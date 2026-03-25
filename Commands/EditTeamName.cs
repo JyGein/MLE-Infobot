@@ -20,7 +20,7 @@ internal class EditTeamName : CommandBase
         client.SlashCommandExecuted += CommandExecuted;
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
-            .WithDescription("Edit's an existing team's name. Will fail if you are not a league admin.")
+            .WithDescription($"Edit's an existing team's name. {Messages.REQUIRESADMIN}")
             .AddOption(TEAMROLEOPTIONNAME, ApplicationCommandOptionType.Role, "The discord role of the team.", isRequired: true)
             .AddOption(TEAMNAMEOPTIONNAME, ApplicationCommandOptionType.String, "The new name of the team.", isRequired: true)
             .Build());

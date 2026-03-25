@@ -20,7 +20,7 @@ internal class EditTeamCaptain : CommandBase
         client.SlashCommandExecuted += CommandExecuted;
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
-            .WithDescription("Edit's an existing team's captain. Will fail if you are not a league admin.")
+            .WithDescription($"Edit's an existing team's captain. {Messages.REQUIRESADMIN}")
             .AddOption(TEAMROLEOPTIONNAME, ApplicationCommandOptionType.Role, "The discord role of the team.", isRequired: true)
             .AddOption(TEAMCAPTAINOPTIONNAME, ApplicationCommandOptionType.User, "The discord user who is the captain of the new team.", isRequired: true)
             .Build());

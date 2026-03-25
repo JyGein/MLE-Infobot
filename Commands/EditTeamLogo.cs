@@ -20,7 +20,7 @@ internal class EditTeamLogo : CommandBase
         client.SlashCommandExecuted += CommandExecuted;
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
-            .WithDescription("Edit's an existing team's logo. Will fail if you are not a league admin.")
+            .WithDescription($"Edit's an existing team's logo. {Messages.REQUIRESADMIN}")
             .AddOption(TEAMROLEOPTIONNAME, ApplicationCommandOptionType.Role, "The discord role of the team.", isRequired: true)
             .AddOption(TEAMLOGOOPTIONNAME, ApplicationCommandOptionType.Attachment, "The new logo of the team.", isRequired: true)
             .Build());

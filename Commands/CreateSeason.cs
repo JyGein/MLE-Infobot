@@ -20,7 +20,7 @@ internal class CreateSeason : CommandBase
         client.SlashCommandExecuted += CommandExecuted;
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
-            .WithDescription("Creates a new season. Will fail if you are not a league admin.")
+            .WithDescription($"Creates a new season. {Messages.REQUIRESADMIN}")
             .AddOption(NUMBEROFWEEKSOPTIONNAME, ApplicationCommandOptionType.Integer, "The number of weeks of the main season.", isRequired: true)
             .Build());
     }

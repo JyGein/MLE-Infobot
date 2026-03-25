@@ -22,7 +22,7 @@ internal class AddTeam : CommandBase
         client.SlashCommandExecuted += CommandExecuted;
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
-            .WithDescription("Adds a team to the league. Will fail if you are not a league admin.")
+            .WithDescription($"Adds a team to the league. {Messages.REQUIRESADMIN}")
             .AddOption(TEAMROLEOPTIONNAME, ApplicationCommandOptionType.Role, "The discord role of the new team.", isRequired: true)
             .AddOption(TEAMNAMEOPTIONNAME, ApplicationCommandOptionType.String, "The name of the new team.", isRequired: true)
             .AddOption(TEAMLOGOOPTIONNAME, ApplicationCommandOptionType.Attachment, "The logo of the new team.", isRequired: true)

@@ -39,8 +39,9 @@ internal class Season
         Finished
     }
     public int SeasonId { get; set; }
-    public required int SeasonNumber { get; set; }
+    public required long SeasonNumber { get; set; }
     public List<Squad> Squads { get; } = [];
+    public List<Week> AllWeeks => [.. SeasonWeeks, .. PlayoffWeeks];
     public List<SeasonWeek> SeasonWeeks { get; } = [];
     public List<PlayoffWeek> PlayoffWeeks { get; } = [];
     public required long NumberOfSeasonWeeks { get; set; }
@@ -55,7 +56,7 @@ internal class Season
         Random rnd = new(Squads.Select(s => s.SquadId).Sum());
         for (int i = 1; i <= NumberOfSeasonWeeks; i++)
         {
-            SeasonWeek week = new() { Season = this, WeekNumber = i };
+            SeasonWeek week = new() { Season = this, WeekNumber = i, State = Week.WeekState.Unpublished };
             List<Squad> unmatchedSquads = [.. Squads];
             unmatchedSquads = [..unmatchedSquads.Shuffle(rnd)];
             while (unmatchedSquads.Count > 1)
@@ -90,6 +91,13 @@ internal class Season
             SeasonWeeks.Add(week);
         }
         await Program.LeagueDatabase.SaveChangesAsync();
+    }
+
+    public Week GetCurrentOrFirstWeek()
+    {
+        List<Week> allWeeks = [..SeasonWeeks, ..PlayoffWeeks];
+        if (allWeeks.FirstOrDefault(w => w.State == Week.WeekState.Current) is Week currentWeek) return currentWeek;
+        return allWeeks.First();
     }
 }
 
@@ -145,6 +153,12 @@ internal class Squad
 
 internal class Week
 {
+    public enum WeekState
+    {
+        Unpublished,
+        Current,
+        Finished
+    }
     public int WeekId { get; set; }
     public required int WeekNumber { get; set; }
     public int SeasonId { get; set; }
@@ -152,9 +166,10 @@ internal class Week
     public List<Match> Matches { get; } = [];
     /// <summary>
     /// This week's random mapping of a matches 1st squad's 1st, 2nd, and 3rd players to the 2nd squad's players.
-    /// I feel like this could be phrased better.
     /// </summary>
+    // I feel like this could be phrased better.
     public int[] Players123Mappings { get; } = [1, 2, 3];
+    public required WeekState State { get; set; }
 }
 
 internal class SeasonWeek : Week

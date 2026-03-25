@@ -12,12 +12,15 @@ namespace MLE_Infobot.Commands;
 
 internal class CommandManager
 {
-    public static List<CommandBase> Commands = [
-        new AddTeam(),
-        new EditTeamName(),
-        new EditTeamLogo(),
-        new EditTeamCaptain(),
-        new RemoveTeam()
+    public static List<CommandBase> CommandsToRegister = [
+        //new AddSquad(),
+        //new AddTeam(),
+        //new CreateSeason(),
+        //new EditTeamCaptain(),
+        //new EditTeamLogo(),
+        //new EditTeamName(),
+        //new RemoveTeam(),
+        new ViewSeason()
         ];
     public static async Task CreateCommands(DiscordSocketClient client)
     {
@@ -25,7 +28,7 @@ internal class CommandManager
         SocketGuild guild = Program.Guild;
         await guild.DeleteApplicationCommandsAsync();
         
-        foreach (CommandBase command in Commands)
+        foreach (CommandBase command in CommandsToRegister)
         {
             try
             {

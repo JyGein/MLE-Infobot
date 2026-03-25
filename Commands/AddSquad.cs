@@ -27,7 +27,7 @@ internal class AddSquad : CommandBase
         client.SlashCommandExecuted += CommandExecuted;
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
-            .WithDescription("Adds a new squad to the next season. Everytime a new squad is added it will randomize the matches. Will fail if you are not a league admin.")
+            .WithDescription($"Adds a new squad to the next season. {Messages.REQUIRESADMIN}")
             .AddOption(TEAMROLEOPTIONNAME, ApplicationCommandOptionType.Role, "The discord role of the new team.", isRequired: true)
             .AddOption(PLAYER1OPTIONNAME, ApplicationCommandOptionType.User, "The first player of this squad.", isRequired: true)
             .AddOption(PLAYER2OPTIONNAME, ApplicationCommandOptionType.User, "The second player of this squad.", isRequired: true)
