@@ -23,7 +23,10 @@ internal abstract partial class CommandBase
     }
 
     [GeneratedRegex("[\\w-]+:(yes|no):(\\d+)")]
-    internal static partial Regex ComponentIdPattern();
+    internal static partial Regex RemoveTeamInteractionIdPattern();
+
+    [GeneratedRegex("\\w+:(\\d+):(\\d+)")]
+    internal static partial Regex ViewSeasonInteractionIDPattern();
 
     internal class Messages
     {

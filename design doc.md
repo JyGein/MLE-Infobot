@@ -20,6 +20,9 @@ Throws if team does not exist.
 Privately tells the user (their team/inputted team)'s season matchups.  
 Throws if (user is not on a team/role is not connected to a team).
 
+**view-division [season-number: int] [division-name: string]**
+Privately tells the user every division in the season (defaults to current season), or every squad in a division if one is named.
+
 **view-season [season-number: int]**  
 Shows all of the matches for the season. Defaults to current season.  
 Admin: Requires admin perms to display a season not published.  
@@ -52,9 +55,9 @@ Throws if role is not attached to a team.
 Edit's an existing team's captain.  
 Throws if role is not attached to a team.
 
-**add-squad <team-role: discord role> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user]**  
-Adds a squad to a team with the listed players to the current unpublished season. Everytime a new squad is added it will randomize the matches.  
-Throws if team doesn't exist or if there isn't an unpublished season.
+**add-squad <division: string> <team-role: discord role> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user]**  
+Adds a squad to a team with the listed players to the division of the current unpublished season. Everytime a new squad is added it will randomize the matches.  
+Throws if team doesn't exist or if there isn't an unpublished season or if division doesn't exist.
 
 **edit-squad <team-role: discord role> <squad-number: int> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user]**  
 Changes the players on a team's squad in the current unpublished season.
@@ -77,6 +80,18 @@ Throws if team doesn't exist.
 Creates a new blank season that squads can be added to.
 Throws if there is currently an unpublished season.
 Notes: This just assumes the playoffs will be Top 8 single elim can add more options in the future for config.
+
+**add-division <division-name: string>**
+Adds a division to the current unpublished season
+Throws if there is no currently unpublished season or if division already exists.
+
+**rename-division <old-division-name: string> <new-division-name: string>**
+Renames a division in the current unpublished season
+Throws if there is no currently unpublished season or if the division does not exist.
+
+**remove-division <division-name: string>**
+Removes a division to the current unpublished season and all of it's squads
+Throws if there is no currently unpublished season or if the division does not exist.
 
 **swap-matchup <season-number: int> <week-number: int> <team1: discord role> <squad1: int> <team2: discord role> <squad2: int>**  
 Swaps two squad's matchup for that season and week.  

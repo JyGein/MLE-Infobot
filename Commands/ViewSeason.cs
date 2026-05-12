@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace MLE_Infobot.Commands;
 
@@ -31,7 +32,8 @@ internal class ViewSeason : CommandBase
     internal async Task CommandExecuted(SocketSlashCommand slashCommand)
     {
         if (slashCommand.Data.Name != COMMANDNAME) return;
-        if (!Program.LeagueDatabase.Seasons.Any())
+        LeagueDBContext dBContext = new();
+        if (!dBContext.Seasons.Any())
         {
             await slashCommand.RespondAsync("There are no seasons to view.", ephemeral: true);
             return;
@@ -40,7 +42,7 @@ internal class ViewSeason : CommandBase
         Season season = null!;
         if (slashCommand.Data.Options.FirstOrDefault(o => o.Name == SEASONNUMBER) is SocketSlashCommandDataOption seasonNumberOption)
         {
-            if (Program.LeagueDatabase.Seasons.FirstOrDefault(s => s.SeasonNumber == (long)seasonNumberOption.Value) is not Season s || (s.State == Season.SeasonState.Unpublished && !isAdmin))
+            if (dBContext.Seasons.FirstOrDefault(s => s.SeasonNumber == (long)seasonNumberOption.Value) is not Season s || (s.State == Season.SeasonState.Unpublished && !isAdmin))
             {
                 await slashCommand.RespondAsync("That season does not exist!", ephemeral: true);
                 return;
@@ -49,7 +51,7 @@ internal class ViewSeason : CommandBase
         }
         else
         {
-            season = Program.LeagueDatabase.Seasons.Where(s => s.State != Season.SeasonState.Unpublished).OrderByDescending(s => s.SeasonNumber).First();
+            season = dBContext.Seasons.Where(s => s.State != Season.SeasonState.Unpublished).OrderByDescending(s => s.SeasonNumber).First();
         }
         Week week = null!;
         if (slashCommand.Data.Options.FirstOrDefault(o => o.Name == WEEKNUMBER) is SocketSlashCommandDataOption weekNumberOption)
@@ -66,18 +68,37 @@ internal class ViewSeason : CommandBase
             week = season.GetCurrentOrFirstWeek();
         }
         await slashCommand.DeferAsync(ephemeral: true);
-         
-        
 
+        await dBContext.DisposeAsync();
 
         await slashCommand.ModifyOriginalResponseAsync((mp) =>
         {
-            //mp.Content = $"Season number {season.SeasonNumber} sucessfully added to the league! Start adding squads with /add-squad.";
+            ViewSeasonPage(mp, week);
         });
     }
 
     internal async Task ButtonClicked(SocketMessageComponent messageComponent)
     {
+        System.Text.RegularExpressions.Match m = ViewSeasonInteractionIDPattern().Match(messageComponent.Data.CustomId);
 
+        messageComponent.Message.ModifyAsync((mp) =>
+        {
+            ViewSeasonPage(mp, week);
+        });
+    }
+
+    /// <summary>
+    /// Modifys a <see cref="MessageProperties"/> to be a specific week of a season displayed as a page that can be navigated to different weeks of the season.
+    /// </summary>
+    /// <param name="mp"></param>
+    /// <param name="w"></param>
+    /// <returns></returns>
+    public void ViewSeasonPage(MessageProperties mp, Week w)
+    {
+        mp.Embed = w.GetDefaultEmbed().Build();
+        ComponentBuilder buttons = new();
+        if (w.WeekNumber != 1) buttons.WithButton("◀", $"{COMMANDNAME}:{w.Season.SeasonNumber}:{w.WeekNumber - 1}");
+        if (w.WeekNumber != w.Season.AllWeeks.Count) buttons.WithButton("▶", $"{COMMANDNAME}:{w.Season.SeasonNumber}:{w.WeekNumber + 1}");
+        mp.Components = buttons.Build();
     }
 }

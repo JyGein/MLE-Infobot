@@ -30,7 +30,6 @@ class Program
     public static DiscordSocketClient Client;
     public static SocketGuild Guild;
 #nullable enable
-    public static LeagueDBContext LeagueDatabase = new();
 
     // Discord.Net heavily utilizes TAP for async, so we create
     // an asynchronous context from the beginning.
@@ -54,7 +53,7 @@ class Program
         Client.Ready += ReadyAsync;
         //_client.MessageReceived += MessageReceivedAsync;
         //_client.InteractionCreated += InteractionCreatedAsync;
-        
+
         // Tokens should be considered secret data, and never hard-coded.
         await Client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("DISCORD_TOKEN"));
         // Different approaches to making your token a secret is by putting them in local .json, .yaml, .xml or .txt files, then reading them on startup.

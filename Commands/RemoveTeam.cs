@@ -38,10 +38,11 @@ internal partial class RemoveTeam : CommandBase
             await slashCommand.RespondAsync("You must be an admin to run this command!", ephemeral: true);
             return;
         }
+        LeagueDBContext dBContext = new();
         await slashCommand.DeferAsync(ephemeral: true);
 
         IRole teamRole = (IRole)slashCommand.Data.Options.First(o => o.Name == TEAMROLEOPTIONNAME).Value;
-        if (Program.LeagueDatabase.Teams.FirstOrDefault(team => team.TeamRoleID == teamRole.Id) is not Team team)
+        if (dBContext.Teams.FirstOrDefault(team => team.TeamRoleID == teamRole.Id) is not Team team)
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
@@ -60,7 +61,7 @@ internal partial class RemoveTeam : CommandBase
             .WithButton("No", COMMANDNAME + ":no:" + slashCommand.Id, ButtonStyle.Danger)
             .Build()
             );
-        InteractionCache[slashCommand.Id] = (slashCommand, confirmationMessage, team);
+        InteractionCache[slashCommand.Id] = (slashCommand, confirmationMessage, team.TeamId);
         await slashCommand.DeleteOriginalResponseAsync();
         new Task(async () => {
             await Task.Delay(TimeSpan.FromMinutes(10));
@@ -70,27 +71,29 @@ internal partial class RemoveTeam : CommandBase
                 await confirmationMessage.ModifyAsync(mp => { mp.Components = null; mp.Content = confirmationMessage.Content + "\n[Timed out]"; });
             }
         }).Start();
+        await dBContext.DisposeAsync();
     }
 
     /// <summary>
-    /// Id, (Slash Command, Confirmation Message, Team to Remove)
+    /// Id, (Slash Command, Confirmation Message, ID of Team to Remove)
     /// </summary>
-    internal static Dictionary<ulong, (SocketSlashCommand, IUserMessage, Team)> InteractionCache = []; 
+    internal static Dictionary<ulong, (SocketSlashCommand, IUserMessage, int)> InteractionCache = []; 
 
     internal async Task ButtonClicked(SocketMessageComponent messageComponent)
     {
         if (!messageComponent.Data.CustomId.Contains(COMMANDNAME)) return;
-        System.Text.RegularExpressions.Match m = ComponentIdPattern().Match(messageComponent.Data.CustomId);
+        System.Text.RegularExpressions.Match m = RemoveTeamInteractionIdPattern().Match(messageComponent.Data.CustomId);
         string confirmationKey = m.Groups[1].Value;
         ulong interactionKey = ulong.Parse(m.Groups[2].Value);
-        if (!InteractionCache.TryGetValue(interactionKey, out (SocketSlashCommand, IUserMessage, Team) interactionInfo))
+        if (!InteractionCache.TryGetValue(interactionKey, out (SocketSlashCommand, IUserMessage, int) interactionInfo))
         {
             await messageComponent.RespondAsync("This interaction has expired!", ephemeral: true);
             return;
         }
+        LeagueDBContext dBContext = new();
         SocketSlashCommand slashCommand = interactionInfo.Item1;
         IUserMessage confirmationMessage = interactionInfo.Item2;
-        Team team = interactionInfo.Item3;
+        Team team = await dBContext.Teams.FirstAsync((t) => t.TeamId == interactionInfo.Item3);
         if (slashCommand.User.Id != messageComponent.User.Id)
         {
             await messageComponent.RespondAsync("This is not your interaction!", ephemeral: true);
@@ -106,6 +109,7 @@ internal partial class RemoveTeam : CommandBase
         {
             await messageComponent.RespondAsync("Did not unlink the team.");
             await confirmationMessage.ModifyAsync(mp => { mp.Components = null; mp.Content = confirmationMessage.Content + "\n[Cancelled]"; });
+            InteractionCache.Remove(interactionKey);
             return;
         }
 
@@ -115,9 +119,9 @@ internal partial class RemoveTeam : CommandBase
         //Checks if any match in any published season has a squad from the team, if not it'll just remove the team from the database and any unpublished seasons, otherwise it'll auto-lose matches for that team in the current season and do a regular role unlink.
         bool fullyRemovedTeamFlag = false;
         bool randomizedUnpublishedSeasonMatches = false;
-        if (await Program.LeagueDatabase.Seasons.AnyAsync(s => s.State != Season.SeasonState.Unpublished && s.SeasonWeeks.Cast<Week>().Concat(s.PlayoffWeeks).Any(w => w.Matches.Any(m => m.HomeSquad.Team == team || m.AwaySquad.Team == team))))
+        if (await dBContext.Seasons.AnyAsync(s => s.State != Season.SeasonState.Unpublished && s.SeasonWeeks.Cast<Week>().Concat(s.PlayoffWeeks).Any(w => w.Matches.Any(m => m.HomeSquad.Team == team || m.AwaySquad.Team == team))))
         {
-            if (await Program.LeagueDatabase.Seasons.FirstOrDefaultAsync(season => season.State == Season.SeasonState.Started) is Season season)
+            if (await dBContext.Seasons.FirstOrDefaultAsync(season => season.State == Season.SeasonState.Started) is Season season)
             {
                 foreach (Week week in season.SeasonWeeks.Cast<Week>().Concat(season.PlayoffWeeks))
                 {
@@ -133,16 +137,17 @@ internal partial class RemoveTeam : CommandBase
         else
         {
             fullyRemovedTeamFlag = true;
-            if (await Program.LeagueDatabase.Seasons.FirstOrDefaultAsync(season => season.State == Season.SeasonState.Unpublished) is Season season)
+            if (await dBContext.Seasons.FirstOrDefaultAsync(season => season.State == Season.SeasonState.Unpublished) is Season season)
             {
                 randomizedUnpublishedSeasonMatches = true;
                 season.Squads.RemoveAll(s => s.Team == team);
                 await season.RandomizeMatches();
             }
-            Program.LeagueDatabase.Remove(team);
+            dBContext.Remove(team);
         }
         
-        await Program.LeagueDatabase.SaveChangesAsync();
+        await dBContext.SaveChangesAsync();
+        await dBContext.DisposeAsync();
 
         InteractionCache.Remove(interactionKey);
         await messageComponent.ModifyOriginalResponseAsync(mp => { mp.Content = fullyRemovedTeamFlag ? $"Team {team.TeamName} was successfully deleted from the league." + (randomizedUnpublishedSeasonMatches ? " Randomization of the unpublished season was required and executed." : "") : $"Team {team.TeamName} was successfully unlinked from it's role."; });

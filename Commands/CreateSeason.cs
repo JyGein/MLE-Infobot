@@ -33,7 +33,8 @@ internal class CreateSeason : CommandBase
             await slashCommand.RespondAsync("You must be an admin to run this command!", ephemeral: true);
             return;
         }
-        if (await Program.LeagueDatabase.Seasons.AnyAsync(s => s.State == Season.SeasonState.Unpublished))
+        LeagueDBContext dBContext = new();
+        if (await dBContext.Seasons.AnyAsync(s => s.State == Season.SeasonState.Unpublished))
         {
             await slashCommand.RespondAsync("There is already an unpublished season!", ephemeral: true);
             return;
@@ -46,11 +47,12 @@ internal class CreateSeason : CommandBase
         }
         await slashCommand.DeferAsync(ephemeral: true);
          
-        Season season = new() { NumberOfSeasonWeeks = numberOfWeeks, SeasonNumber = (!await Program.LeagueDatabase.Seasons.AnyAsync()) ? 1 : (await Program.LeagueDatabase.Seasons.OrderBy(s => s.SeasonNumber).FirstAsync()).SeasonNumber + 1, State = Season.SeasonState.Unpublished };
+        Season season = new() { NumberOfSeasonWeeks = numberOfWeeks, SeasonNumber = (!await dBContext.Seasons.AnyAsync()) ? 1 : (await dBContext.Seasons.OrderBy(s => s.SeasonNumber).FirstAsync()).SeasonNumber + 1, State = Season.SeasonState.Unpublished };
 
-        await Program.LeagueDatabase.AddAsync(season);
+        await dBContext.AddAsync(season);
 
-        await Program.LeagueDatabase.SaveChangesAsync();
+        await dBContext.SaveChangesAsync();
+        await dBContext.DisposeAsync();
 
         Console.WriteLine($"Season number {season.SeasonNumber} created with {numberOfWeeks}");
         await slashCommand.ModifyOriginalResponseAsync((mp) =>
