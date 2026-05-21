@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -36,8 +37,10 @@ internal class EditTeamCaptain : CommandBase
         }
         await slashCommand.DeferAsync(ephemeral: true);
 
+        LeagueDBContext dBContext = new();
+
         IRole teamRole = (IRole)slashCommand.Data.Options.First(o => o.Name == TEAMROLEOPTIONNAME).Value;
-        if (Program.LeagueDatabase.Teams.FirstOrDefault(team => team.TeamRoleID == teamRole.Id) is not Team team)
+        if (dBContext.Teams.FirstOrDefault(team => team.TeamRoleID == teamRole.Id) is not Team team)
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
@@ -48,16 +51,17 @@ internal class EditTeamCaptain : CommandBase
 
         IUser teamCaptain = (IUser)slashCommand.Data.Options.First(o => o.Name == TEAMCAPTAINOPTIONNAME).Value;
 
-        ulong oldTeamCaptainId = team.TeamCaptainID;
-        SocketGuildUser oldTeamCaptain = Program.Guild.GetUser(oldTeamCaptainId);
+        await dBContext.UpdateUserEntry(teamCaptain);
+        string oldTeamCaptainUsername = (await dBContext.PlayerNames.FirstAsync(pn => pn.PlayerUserID == team.TeamCaptainID)).GetPlayerName();
 
         team.TeamCaptainID = teamCaptain.Id;
-        await Program.LeagueDatabase.SaveChangesAsync();
+        await dBContext.SaveChangesAsync();
+        await dBContext.DisposeAsync();
 
-        Console.WriteLine($"{team.TeamName} captain was changed from {oldTeamCaptain.GlobalName ?? teamCaptain.Username} to {teamCaptain.GlobalName ?? teamCaptain.Username}.");
+        Console.WriteLine($"{team.TeamName} captain was changed from {oldTeamCaptainUsername ?? teamCaptain.Username} to {teamCaptain.GlobalName ?? teamCaptain.Username}.");
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
         {
-            mp.Content = $"Successfully changed {team.TeamName} captain from {oldTeamCaptain.GlobalName ?? teamCaptain.Username} to {teamCaptain.GlobalName ?? teamCaptain.Username}.";
+            mp.Content = $"Successfully changed {team.TeamName} captain from {oldTeamCaptainUsername ?? teamCaptain.Username} to {teamCaptain.GlobalName ?? teamCaptain.Username}.";
             mp.Embeds = new Embed[] { (await team.GetDefaultEmbed()).Build() };
         });
     }

@@ -141,7 +141,7 @@ internal partial class RemoveTeam : CommandBase
             {
                 randomizedUnpublishedSeasonMatches = true;
                 season.Squads.RemoveAll(s => s.Team == team);
-                await season.RandomizeMatches();
+                await season.RandomizeGuaranteedMatches();
             }
             dBContext.Remove(team);
         }

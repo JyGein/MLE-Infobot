@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Data.SqlTypes;
 using System.Drawing;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -94,6 +95,7 @@ internal class AddSquad : CommandBase
             {
                 warnings += $"{player.Username} is on this squad an additional time.\n";
             }
+            await dBContext.UpdateUserEntry(player);
             squad.PlayerIDs.Add(player.Id);
         }
         foreach (IUser sub in subs)
@@ -102,6 +104,7 @@ internal class AddSquad : CommandBase
             {
                 warnings += $"{sub.Username} is on this squad an additional time.\n";
             }
+            await dBContext.UpdateUserEntry(sub);
             squad.SubstituteIDs.Add(sub.Id);
         }
         foreach (IUser player in players.Concat(subs))
@@ -134,8 +137,8 @@ internal class AddSquad : CommandBase
             }
         }
 
-        season.Squads.Add(squad);
-        await season.RandomizeMatches();
+        division.Squads.Add(squad);
+        await season.RandomizeGuaranteedMatches();
         await dBContext.SaveChangesAsync();
         await dBContext.DisposeAsync();
 

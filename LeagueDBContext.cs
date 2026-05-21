@@ -18,6 +18,7 @@ internal sealed class LeagueDBContext : DbContext
 {
     public DbSet<Season> Seasons { get; set; }
     public DbSet<Team> Teams { get; set; }
+    public DbSet<PlayerName> PlayerNames { get; set; }
 
     public string DbPath { get; }
 
@@ -31,6 +32,27 @@ internal sealed class LeagueDBContext : DbContext
     }
     protected override void OnConfiguring(DbContextOptionsBuilder options)
         => options.UseSqlite($"Data Source={DbPath}");
+
+    public async Task UpdateUserEntry(IUser user)
+    {
+        if (await PlayerNames.FirstOrDefaultAsync(pn => pn.PlayerUserID == user.Id) is not PlayerName playerName)
+        {
+            await PlayerNames.AddAsync(new() { PlayerUserID = user.Id, PlayerUsername = user.Username });
+        }
+        else
+        {
+            playerName.PlayerUsername = user.Username;
+        }
+    }
+
+    public async Task<string> GetPlayerName(ulong playerId)
+    {
+        if (await PlayerNames.FirstOrDefaultAsync(pn => pn.PlayerUserID == playerId) is PlayerName playerName)
+        {
+            return playerName.GetPlayerName();
+        }
+        else return "UNKNOWN";
+    }
 }
 
 internal class Season
@@ -53,8 +75,10 @@ internal class Season
     public required long NumberOfSeasonWeeks { get; set; }
     public required SeasonState State { get; set; }
 
-    public async Task RandomizeMatches()
+    public async Task RandomizeGuaranteedMatches()
     {
+        //needs rewriting
+        return;
         //this should never happen but just in case, since this is dangerous to do on an in-progress season as it clears all season weeks
         if (State != SeasonState.Unpublished) return;
         LeagueDBContext dBContext = new();
@@ -206,12 +230,13 @@ internal class Week
 
     public EmbedBuilder GetDefaultEmbed()
     {
+        LeagueDBContext dBContext = new();
         List<EmbedFieldBuilder> fields = [];
         foreach (Match match in Matches)
         {
             fields.Add(new EmbedFieldBuilder()
                 .WithName($"{match.HomeSquad.Team.TeamName} - Squad {match.HomeSquad.SquadNumber} {(match.Winner == Match.MatchState.Undecided ? "vs" : $"{match.HomeGameWins}-{match.AwayGameWins}")} {match.AwaySquad.Team.TeamName} - Squad {match.AwaySquad.SquadNumber}")
-                .WithValue(string.Join("\n", match.Games.Select(g => $"{Program.Guild.GetUser(g.HomePlayerID).DisplayName} {(match.Winner == Match.MatchState.Undecided ? "vs" : $"{g.HomePlayerWins}-{g.AwayPlayerWins}")} {Program.Guild.GetUser(g.AwayPlayerID).DisplayName}"))));
+                .WithValue(string.Join("\n", match.Games.Select(g => $"{dBContext.GetPlayerName(g.HomePlayerIDWithSub)} {(match.Winner == Match.MatchState.Undecided ? "vs" : $"{g.HomePlayerWins}-{g.AwayPlayerWins}")} {dBContext.GetPlayerName(g.AwayPlayerIDWithSub)}"))));
         }
         return new EmbedBuilder()
             .WithTitle($"Season {Season.SeasonNumber} - Week {WeekNumber}")
@@ -224,7 +249,8 @@ internal class Week
 /// </summary>
 internal class SeasonWeek : Week
 {
-
+    //so there can be a message (when the week is displayed in an embed) that when it gets published it will have matches for every squad to inform players
+    public required bool IsOnlyPartiallyFilled;
 }
 
 /// <summary>
@@ -277,6 +303,8 @@ internal class Match
 internal class Substitution
 {
     public int SubstitutionId { get; set; }
+    public int MatchId { get; set; }
+    public required Match Match { get; set; }
     public required ulong PlayerID { get; set; }
     public required ulong SubstituteID { get; set; }
 }
@@ -295,8 +323,28 @@ internal class Game
     }
     public int GameId { get; set; }
     public GameState State = GameState.Undecided;
+    public int MatchId { get; set; }
+    public required Match Match { get; set; }
     public required ulong HomePlayerID { get; set; }
+    public ulong HomePlayerIDWithSub => Match.Substitutions.FirstOrDefault(s => s.PlayerID == HomePlayerID) is Substitution sub ? sub.SubstituteID : HomePlayerID;
     public required ulong AwayPlayerID { get; set; }
+    public ulong AwayPlayerIDWithSub => Match.Substitutions.FirstOrDefault(s => s.PlayerID == AwayPlayerID) is Substitution sub ? sub.SubstituteID : AwayPlayerID;
     public int HomePlayerWins { get; set; } = 0;
     public int AwayPlayerWins { get; set; } = 0;
+}
+
+internal class PlayerName
+{
+    public int PlayerNameId { get; set; }
+    public required ulong PlayerUserID { get; set; }
+    public required string PlayerUsername { get; set; }
+    public string GetPlayerName()
+    {
+        if (Program.Guild.GetUser(PlayerUserID) is SocketGuildUser user)
+        {
+            PlayerUsername = user.Username;
+            return user.DisplayName;
+        }
+        return PlayerUsername;
+    }
 }

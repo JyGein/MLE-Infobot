@@ -15,8 +15,18 @@ internal abstract partial class CommandBase
 
     public static bool IsAdmin(SocketSlashCommand slashCommand)
     {
-        SocketGuild guild = Program.Client.GetGuild(ulong.Parse(Environment.GetEnvironmentVariable("GUILD_ID")!));
-        SocketGuildUser user = guild.GetUser(slashCommand.User.Id);
+        SocketGuildUser user = Program.Guild.GetUser(slashCommand.User.Id);
+        return IsAdmin(user);
+    }
+
+    public static bool IsAdmin(SocketMessageComponent messageComponent)
+    {
+        SocketGuildUser user = Program.Guild.GetUser(messageComponent.User.Id);
+        return IsAdmin(user);
+    }
+
+    public static bool IsAdmin(SocketGuildUser user)
+    {
         if (user.GuildPermissions.Administrator) return true;
         if (user.Roles.Any(role => role.Id == ulong.Parse(Environment.GetEnvironmentVariable("ADMIN_ROLE")!))) return true;
         return false;

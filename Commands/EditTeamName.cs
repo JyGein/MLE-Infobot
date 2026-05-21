@@ -36,8 +36,10 @@ internal class EditTeamName : CommandBase
         }
         await slashCommand.DeferAsync(ephemeral: true);
 
+        LeagueDBContext dBContext = new();
+
         IRole teamRole = (IRole)slashCommand.Data.Options.First(o => o.Name == TEAMROLEOPTIONNAME).Value;
-        if (Program.LeagueDatabase.Teams.FirstOrDefault(team => team.TeamRoleID == teamRole.Id) is not Team team)
+        if (dBContext.Teams.FirstOrDefault(team => team.TeamRoleID == teamRole.Id) is not Team team)
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
@@ -50,7 +52,8 @@ internal class EditTeamName : CommandBase
         string oldTeamName = team.TeamName;
 
         team.TeamName = teamName;
-        await Program.LeagueDatabase.SaveChangesAsync();
+        await dBContext.SaveChangesAsync();
+        await dBContext.DisposeAsync();
 
         Console.WriteLine($"{oldTeamName} name was changed to {teamName}.");
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>

@@ -40,8 +40,10 @@ internal class AddTeam : CommandBase
         }
         await slashCommand.DeferAsync(ephemeral: true);
 
+        LeagueDBContext dBContext = new();
+
         IRole teamRole = (IRole)slashCommand.Data.Options.First(o => o.Name == TEAMROLEOPTIONNAME).Value;
-        if (Program.LeagueDatabase.Teams.Any(team => team.TeamRoleID == teamRole.Id))
+        if (dBContext.Teams.Any(team => team.TeamRoleID == teamRole.Id))
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
@@ -61,9 +63,11 @@ internal class AddTeam : CommandBase
         }
         IUser teamCaptain = (IUser)slashCommand.Data.Options.First(o => o.Name == TEAMCAPTAINOPTIONNAME).Value;
 
+        await dBContext.UpdateUserEntry(teamCaptain);
         Team team = new() { TeamCaptainID = teamCaptain.Id, TeamName = teamName, TeamLogoURL = teamLogo.Url, TeamRoleID = teamRole.Id };
-        await Program.LeagueDatabase.AddAsync(team);
-        await Program.LeagueDatabase.SaveChangesAsync();
+        await dBContext.AddAsync(team);
+        await dBContext.SaveChangesAsync();
+        await dBContext.DisposeAsync();
 
         Console.WriteLine($"New team created:\nTeam name: {teamName}\nTeam logo: {teamLogo.Url}\nTeam captain: {teamCaptain.GlobalName ?? teamCaptain.Username}");
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>

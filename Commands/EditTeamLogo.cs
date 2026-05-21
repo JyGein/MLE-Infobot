@@ -36,8 +36,10 @@ internal class EditTeamLogo : CommandBase
         }
         await slashCommand.DeferAsync(ephemeral: true);
 
+        LeagueDBContext dBContext = new();
+
         IRole teamRole = (IRole)slashCommand.Data.Options.First(o => o.Name == TEAMROLEOPTIONNAME).Value;
-        if (Program.LeagueDatabase.Teams.FirstOrDefault(team => team.TeamRoleID == teamRole.Id) is not Team team)
+        if (dBContext.Teams.FirstOrDefault(team => team.TeamRoleID == teamRole.Id) is not Team team)
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
@@ -58,7 +60,8 @@ internal class EditTeamLogo : CommandBase
         string oldTeamLogo = team.TeamLogoURL;
 
         team.TeamLogoURL = teamLogo.Url;
-        await Program.LeagueDatabase.SaveChangesAsync();
+        await dBContext.SaveChangesAsync();
+        await dBContext.DisposeAsync();
 
         Console.WriteLine($"{team.TeamName} logo was changed from {oldTeamLogo} to {teamLogo.Url}.");
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>

@@ -28,7 +28,7 @@ class Program
     // If you want to assign it elsewhere, consider removing the readonly keyword.
 #nullable disable
     public static DiscordSocketClient Client;
-    public static SocketGuild Guild;
+    public static SocketGuild Guild => Client.GetGuild(ulong.Parse(Environment.GetEnvironmentVariable("GUILD_ID")!));
 #nullable enable
 
     // Discord.Net heavily utilizes TAP for async, so we create
@@ -39,7 +39,7 @@ class Program
         // Config used by DiscordSocketClient
         // Define intents for the client
         // Note that GatewayIntents.MessageContent is a privileged intent, and requires extra setup in the developer portal.
-        DiscordSocketConfig config = new DiscordSocketConfig
+        DiscordSocketConfig config = new()
         {
             GatewayIntents = GatewayIntents.AllUnprivileged// | GatewayIntents.MessageContent
         };
@@ -75,8 +75,6 @@ class Program
     private async static Task ReadyAsync()
     {
         Console.WriteLine($"{Client.CurrentUser} is connected!");
-
-        Guild = Client.GetGuild(ulong.Parse(Environment.GetEnvironmentVariable("GUILD_ID")!));
 
         await CommandManager.CreateCommands(Client);
     }

@@ -14,8 +14,8 @@ internal class ViewSeason : CommandBase
 {
     const string COMMANDNAME = "view-season";
 
-    const string SEASONNUMBER = "season-number";
-    const string WEEKNUMBER = "week-number";
+    const string SEASONNUMBEROPTIONNAME = "season-number";
+    const string WEEKNUMBEROPTIONNAME = "week-number";
 
     public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
     {
@@ -24,8 +24,8 @@ internal class ViewSeason : CommandBase
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
             .WithDescription("View a season.")
-            .AddOption(SEASONNUMBER, ApplicationCommandOptionType.Integer, "The season number you want to view. Defaults to the most recent season.")
-            .AddOption(WEEKNUMBER, ApplicationCommandOptionType.Integer, "The week number of the season you want to intially view.")
+            .AddOption(SEASONNUMBEROPTIONNAME, ApplicationCommandOptionType.Integer, "The season number you want to view. Defaults to the most recent season.")
+            .AddOption(WEEKNUMBEROPTIONNAME, ApplicationCommandOptionType.Integer, "The week number of the season you want to intially view.")
             .Build());
     }
 
@@ -40,7 +40,7 @@ internal class ViewSeason : CommandBase
         }
         bool isAdmin = IsAdmin(slashCommand);
         Season season = null!;
-        if (slashCommand.Data.Options.FirstOrDefault(o => o.Name == SEASONNUMBER) is SocketSlashCommandDataOption seasonNumberOption)
+        if (slashCommand.Data.Options.FirstOrDefault(o => o.Name == SEASONNUMBEROPTIONNAME) is SocketSlashCommandDataOption seasonNumberOption)
         {
             if (dBContext.Seasons.FirstOrDefault(s => s.SeasonNumber == (long)seasonNumberOption.Value) is not Season s || (s.State == Season.SeasonState.Unpublished && !isAdmin))
             {
@@ -54,7 +54,7 @@ internal class ViewSeason : CommandBase
             season = dBContext.Seasons.Where(s => s.State != Season.SeasonState.Unpublished).OrderByDescending(s => s.SeasonNumber).First();
         }
         Week week = null!;
-        if (slashCommand.Data.Options.FirstOrDefault(o => o.Name == WEEKNUMBER) is SocketSlashCommandDataOption weekNumberOption)
+        if (slashCommand.Data.Options.FirstOrDefault(o => o.Name == WEEKNUMBEROPTIONNAME) is SocketSlashCommandDataOption weekNumberOption)
         {
             if (season.SeasonWeeks.Cast<Week>().Concat(season.PlayoffWeeks).FirstOrDefault(w => w.WeekNumber == (long)weekNumberOption.Value) is not Week w)
             {
@@ -73,17 +73,30 @@ internal class ViewSeason : CommandBase
 
         await slashCommand.ModifyOriginalResponseAsync((mp) =>
         {
-            ViewSeasonPage(mp, week);
+            ViewSeasonPage(mp, week, isAdmin);
         });
     }
 
     internal async Task ButtonClicked(SocketMessageComponent messageComponent)
     {
+        if (!messageComponent.Data.CustomId.Contains(COMMANDNAME)) return; //interaction shouldn't have been for me
         System.Text.RegularExpressions.Match m = ViewSeasonInteractionIDPattern().Match(messageComponent.Data.CustomId);
+        if (!m.Success) return; //interaction couldn't be parsed
 
-        messageComponent.Message.ModifyAsync((mp) =>
+        LeagueDBContext dBContext = new();
+        
+        if (!long.TryParse(m.Groups[1].Value, out long seasonNumber)) return; //regex somehow captured a digit that couldn't be parsed to a long
+        if (await dBContext.Seasons.FirstOrDefaultAsync(s => s.SeasonNumber == seasonNumber) is not Season s) return; //the interaction had a season number that isn't there
+        bool isAdmin = IsAdmin(messageComponent);
+        if (!isAdmin && s.State == Season.SeasonState.Unpublished) return; //somehow a non-admin is viewing an unpublished season
+        if (!long.TryParse(m.Groups[2].Value, out long weekNumber)) return; //regex somehow captured a digit that couldn't be parsed to a long
+        if (s.AllWeeks.FirstOrDefault(w => w.WeekNumber == weekNumber) is not Week w) return; //the interaction had a week number that isn't there
+
+        await dBContext.DisposeAsync();
+        
+        await messageComponent.Message.ModifyAsync((mp) =>
         {
-            ViewSeasonPage(mp, week);
+            ViewSeasonPage(mp, w, isAdmin);
         });
     }
 
@@ -93,7 +106,7 @@ internal class ViewSeason : CommandBase
     /// <param name="mp"></param>
     /// <param name="w"></param>
     /// <returns></returns>
-    public void ViewSeasonPage(MessageProperties mp, Week w)
+    public void ViewSeasonPage(MessageProperties mp, Week w, bool isAdmin)
     {
         mp.Embed = w.GetDefaultEmbed().Build();
         ComponentBuilder buttons = new();

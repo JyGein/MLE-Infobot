@@ -12,14 +12,16 @@ namespace MLE_Infobot.Commands;
 
 internal class CommandManager
 {
+    //should be commented out as necessary when building, when ran will update each command not commented out in a slow operation.
     public static List<CommandBase> CommandsToRegister = [
-        //new AddSquad(),
-        //new AddTeam(),
-        //new CreateSeason(),
-        //new EditTeamCaptain(),
-        //new EditTeamLogo(),
-        //new EditTeamName(),
-        //new RemoveTeam(),
+        new AddDivision(),
+        new AddSquad(),
+        new AddTeam(),
+        new CreateSeason(),
+        new EditTeamCaptain(),
+        new EditTeamLogo(),
+        new EditTeamName(),
+        new RemoveTeam(),
         new ViewSeason()
         ];
     public static async Task CreateCommands(DiscordSocketClient client)
