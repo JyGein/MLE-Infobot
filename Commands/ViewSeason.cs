@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace MLE_Infobot.Commands;
 
@@ -17,10 +18,13 @@ internal class ViewSeason : CommandBase
     const string SEASONNUMBEROPTIONNAME = "season-number";
     const string WEEKNUMBEROPTIONNAME = "week-number";
 
-    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    public override async Task SubscribeCommand(DiscordSocketClient client)
     {
         client.SlashCommandExecuted += CommandExecuted;
         client.ButtonExecuted += ButtonClicked;
+    }
+    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
             .WithDescription("View a season.")
@@ -33,16 +37,20 @@ internal class ViewSeason : CommandBase
     {
         if (slashCommand.Data.Name != COMMANDNAME) return;
         LeagueDBContext dBContext = new();
-        if (!dBContext.Seasons.Any())
+        bool isAdmin = IsAdmin(slashCommand);
+        if (isAdmin ? !await dBContext.Seasons.AnyAsync() : !await dBContext.Seasons.AnyAsync(s => s.State != Season.SeasonState.Unpublished))
         {
             await slashCommand.RespondAsync("There are no seasons to view.", ephemeral: true);
             return;
         }
-        bool isAdmin = IsAdmin(slashCommand);
+        List<Season> Seasons = await dBContext.Seasons
+            .Include(s => s.PlayoffWeeks)
+            .Include(s => s.SeasonWeeks)
+            .ToListAsync();
         Season season = null!;
         if (slashCommand.Data.Options.FirstOrDefault(o => o.Name == SEASONNUMBEROPTIONNAME) is SocketSlashCommandDataOption seasonNumberOption)
         {
-            if (dBContext.Seasons.FirstOrDefault(s => s.SeasonNumber == (long)seasonNumberOption.Value) is not Season s || (s.State == Season.SeasonState.Unpublished && !isAdmin))
+            if (Seasons.FirstOrDefault(s => s.SeasonNumber == (long)seasonNumberOption.Value) is not Season s || (s.State == Season.SeasonState.Unpublished && !isAdmin))
             {
                 await slashCommand.RespondAsync("That season does not exist!", ephemeral: true);
                 return;
@@ -51,12 +59,12 @@ internal class ViewSeason : CommandBase
         }
         else
         {
-            season = dBContext.Seasons.Where(s => s.State != Season.SeasonState.Unpublished).OrderByDescending(s => s.SeasonNumber).First();
+            season = Seasons.Where(s => isAdmin || s.State != Season.SeasonState.Unpublished).OrderByDescending(s => s.SeasonNumber).First();
         }
         Week week = null!;
         if (slashCommand.Data.Options.FirstOrDefault(o => o.Name == WEEKNUMBEROPTIONNAME) is SocketSlashCommandDataOption weekNumberOption)
         {
-            if (season.SeasonWeeks.Cast<Week>().Concat(season.PlayoffWeeks).FirstOrDefault(w => w.WeekNumber == (long)weekNumberOption.Value) is not Week w)
+            if (season.AllWeeks.FirstOrDefault(w => w.WeekNumber == (long)weekNumberOption.Value) is not Week w)
             {
                 await slashCommand.RespondAsync("That week does not exist!", ephemeral: true);
                 return;
@@ -65,15 +73,15 @@ internal class ViewSeason : CommandBase
         }
         else
         {
-            week = season.GetCurrentOrFirstWeek();
+            week = await season.GetCurrentOrFirstWeek();
         }
         await slashCommand.DeferAsync(ephemeral: true);
 
         await dBContext.DisposeAsync();
 
-        await slashCommand.ModifyOriginalResponseAsync((mp) =>
+        await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
         {
-            ViewSeasonPage(mp, week, isAdmin);
+            await ViewSeasonPage(mp, week, isAdmin);
         });
     }
 
@@ -86,7 +94,7 @@ internal class ViewSeason : CommandBase
         LeagueDBContext dBContext = new();
         
         if (!long.TryParse(m.Groups[1].Value, out long seasonNumber)) return; //regex somehow captured a digit that couldn't be parsed to a long
-        if (await dBContext.Seasons.FirstOrDefaultAsync(s => s.SeasonNumber == seasonNumber) is not Season s) return; //the interaction had a season number that isn't there
+        if (await dBContext.Seasons.Include(s => s.PlayoffWeeks).Include(s => s.SeasonWeeks).FirstOrDefaultAsync(s => s.SeasonNumber == seasonNumber) is not Season s) return; //the interaction had a season number that isn't there
         bool isAdmin = IsAdmin(messageComponent);
         if (!isAdmin && s.State == Season.SeasonState.Unpublished) return; //somehow a non-admin is viewing an unpublished season
         if (!long.TryParse(m.Groups[2].Value, out long weekNumber)) return; //regex somehow captured a digit that couldn't be parsed to a long
@@ -94,9 +102,9 @@ internal class ViewSeason : CommandBase
 
         await dBContext.DisposeAsync();
         
-        await messageComponent.Message.ModifyAsync((mp) =>
+        await messageComponent.Message.ModifyAsync(async (mp) =>
         {
-            ViewSeasonPage(mp, w, isAdmin);
+            await ViewSeasonPage(mp, w, isAdmin);
         });
     }
 
@@ -106,12 +114,23 @@ internal class ViewSeason : CommandBase
     /// <param name="mp"></param>
     /// <param name="w"></param>
     /// <returns></returns>
-    public void ViewSeasonPage(MessageProperties mp, Week w, bool isAdmin)
+    public async Task ViewSeasonPage(MessageProperties mp, Week w, bool isAdmin)
     {
-        mp.Embed = w.GetDefaultEmbed().Build();
+        LeagueDBContext dBContext = new();
+        Week week = (Week)(await dBContext.FindAsync(typeof(Week), w.WeekId))!;
+        await dBContext.Entry(week)
+            .Reference(w => w.Season)
+            .LoadAsync();
+        await dBContext.Entry(week.Season)
+            .Collection(s => s.SeasonWeeks)
+            .LoadAsync();
+        await dBContext.Entry(week.Season)
+            .Collection(s => s.PlayoffWeeks)
+            .LoadAsync();
+        mp.Embed = (await week.GetEmbed()).Build();
         ComponentBuilder buttons = new();
-        if (w.WeekNumber != 1) buttons.WithButton("◀", $"{COMMANDNAME}:{w.Season.SeasonNumber}:{w.WeekNumber - 1}");
-        if (w.WeekNumber != w.Season.AllWeeks.Count) buttons.WithButton("▶", $"{COMMANDNAME}:{w.Season.SeasonNumber}:{w.WeekNumber + 1}");
+        if (week.WeekNumber != 1) buttons.WithButton("◀", $"{COMMANDNAME}:{week.Season.SeasonNumber}:{week.WeekNumber - 1}");
+        if (week.WeekNumber != week.Season.AllWeeks.Count) buttons.WithButton("▶", $"{COMMANDNAME}:{week.Season.SeasonNumber}:{week.WeekNumber + 1}");
         mp.Components = buttons.Build();
     }
 }

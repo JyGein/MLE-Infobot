@@ -9,6 +9,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace MLE_Infobot.Commands;
 
@@ -24,9 +25,12 @@ internal class AddSquad : CommandBase
     const string SUB1OPTIONNAME = "sub1";
     const string SUB2OPTIONNAME = "sub2";
 
-    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    public override async Task SubscribeCommand(DiscordSocketClient client)
     {
         client.SlashCommandExecuted += CommandExecuted;
+    }
+    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
             .WithDescription($"Adds a new squad to the next season. {Messages.REQUIRESADMIN}")
@@ -56,9 +60,13 @@ internal class AddSquad : CommandBase
         }
         await slashCommand.DeferAsync(ephemeral: true);
 
-        Season season = await dBContext.Seasons.FirstAsync(s => s.State == Season.SeasonState.Unpublished);
-        string divisionName = (string)slashCommand.Data.Options.First(o => o.Name == DIVISIONOPTIONNAME);
-        if (season.Divisions.FirstOrDefault(d => d.DivisionName.Equals(divisionName.Trim(), StringComparison.CurrentCultureIgnoreCase)) is not Division division)
+        Season season = await dBContext.Seasons
+            .Include(s => s.Divisions)
+            .ThenInclude(d => d.Squads)
+            .ThenInclude(s => s.Team)
+            .FirstAsync(s => s.State == Season.SeasonState.Unpublished);
+        string divisionName = ((string)slashCommand.Data.Options.First(o => o.Name == DIVISIONOPTIONNAME)).Trim();
+        if (season.Divisions.FirstOrDefault(d => d.DivisionName.Equals(divisionName, StringComparison.OrdinalIgnoreCase)) is not Division division)
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
@@ -68,7 +76,7 @@ internal class AddSquad : CommandBase
         }
 
         IRole teamRole = (IRole)slashCommand.Data.Options.First(o => o.Name == TEAMROLEOPTIONNAME).Value;
-        if (dBContext.Teams.FirstOrDefault(team => team.TeamRoleID == teamRole.Id) is not Team team)
+        if (await dBContext.Teams.FirstOrDefaultAsync(team => team.TeamRoleID == teamRole.Id) is not Team team)
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
@@ -91,27 +99,27 @@ internal class AddSquad : CommandBase
         Squad squad = new() { Division = division, SquadNumber = squadNumber, Team = team };
         foreach (IUser player in players)
         {
-            if (squad.PlayerIDs.Contains(player.Id))
+            if (squad.PlayerIDs.Any(sp => sp == player.Id))
             {
-                warnings += $"{player.Username} is on this squad an additional time.\n";
+                warnings += $"{player.GlobalName} is on this squad an additional time.\n";
             }
             await dBContext.UpdateUserEntry(player);
-            squad.PlayerIDs.Add(player.Id);
+            squad.PlayerIDs.Add((player.Id, squad));
         }
         foreach (IUser sub in subs)
         {
-            if (squad.PlayerIDs.Contains(sub.Id) || squad.SubstituteIDs.Contains(sub.Id))
+            if (squad.PlayerIDs.Any(sp => sp == sub.Id) || squad.SubstituteIDs.Any(sp => sp == sub.Id))
             {
-                warnings += $"{sub.Username} is on this squad an additional time.\n";
+                warnings += $"{sub.GlobalName} is on this squad an additional time.\n";
             }
             await dBContext.UpdateUserEntry(sub);
-            squad.SubstituteIDs.Add(sub.Id);
+            squad.SubstituteIDs.Add((sub.Id, squad));
         }
         foreach (IUser player in players.Concat(subs))
         {
             if (!Program.Guild.GetUser(player.Id).Roles.Any(r => r.Id == teamRole.Id))
             {
-                warnings += $"{player.Username} does not have the team's role.\n";
+                warnings += $"{player.GlobalName} does not have the team's role.\n";
             }
         }
 
@@ -119,28 +127,30 @@ internal class AddSquad : CommandBase
         {
             foreach (IUser player in players)
             {
-                if (anotherSquad.PlayerIDs.Contains(player.Id))
+                if (anotherSquad.PlayerIDs.Any(sp => sp == player.Id))
                 {
-                    warnings += $"{player.Username} is already on {anotherSquad.Team.TeamName} - Squad {anotherSquad.SquadNumber} as a player.\n";
+                    warnings += $"{player.GlobalName} is already on {anotherSquad.Team.TeamName} - Squad {anotherSquad.SquadNumber} as a player.\n";
                 }
-                if (anotherSquad.SubstituteIDs.Contains(player.Id))
+                if (anotherSquad.SubstituteIDs.Any(sp => sp == player.Id))
                 {
-                    warnings += $"{player.Username} is already on {anotherSquad.Team.TeamName} - Squad {anotherSquad.SquadNumber} as a substitute.\n";
+                    warnings += $"{player.GlobalName} is already on {anotherSquad.Team.TeamName} - Squad {anotherSquad.SquadNumber} as a substitute.\n";
                 }
             }
             foreach (IUser player in subs)
             {
-                if (anotherSquad.PlayerIDs.Contains(player.Id))
+                if (anotherSquad.PlayerIDs.Any(sp => sp == player.Id))
                 {
-                    warnings += $"{player.Username} is already on {anotherSquad.Team.TeamName} - Squad {anotherSquad.SquadNumber} as a player.\n";
+                    warnings += $"{player.GlobalName} is already on {anotherSquad.Team.TeamName} - Squad {anotherSquad.SquadNumber} as a player.\n";
                 }
             }
         }
 
         division.Squads.Add(squad);
-        await season.RandomizeGuaranteedMatches();
         await dBContext.SaveChangesAsync();
+        dBContext.Entry(season).State = EntityState.Detached;
+        dBContext.Entry(squad).State = EntityState.Detached;
         await dBContext.DisposeAsync();
+        await season.RandomizeGuaranteedMatches();
 
         Console.WriteLine($"Squad number {squadNumber} created with {player1.Id}, {player2.Id}, and {player3.Id} as players and {string.Join(", ", subs.Select(s => s.Id.ToString()))} as sub(s).");
         Embed[] embeds = [(await squad.GetDefaultEmbed()).Build()];

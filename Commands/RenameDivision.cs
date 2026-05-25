@@ -1,6 +1,8 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
+using MLE_Infobot.Migrations;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlTypes;
@@ -20,9 +22,12 @@ internal class RenameDivision : CommandBase
     const string NEWDIVISIONOPTIONNAME = "new-division-name";
     const string SEASONNUMBEROPTIONNAME = "season-number";
 
-    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    public override async Task SubscribeCommand(DiscordSocketClient client)
     {
         client.SlashCommandExecuted += CommandExecuted;
+    }
+    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
             .WithDescription($"Renames a division. {Messages.REQUIRESADMIN}")
@@ -51,7 +56,7 @@ internal class RenameDivision : CommandBase
 
         string oldDivisionName = ((string)slashCommand.Data.Options.First(o => o.Name == OLDDIVISIONOPTIONNAME)).Trim();
         //throw if no division goes by the old name
-        if (season.Divisions.FirstOrDefault(d => d.DivisionName.Equals(oldDivisionName, StringComparison.CurrentCultureIgnoreCase)) is not Division existingDivision)
+        if (season.Divisions.FirstOrDefault(d => d.DivisionName.ToLower().Equals(oldDivisionName.ToLower())) is not Division existingDivision)
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
@@ -61,7 +66,7 @@ internal class RenameDivision : CommandBase
         }
         string newDivisionName = ((string)slashCommand.Data.Options.First(o => o.Name == NEWDIVISIONOPTIONNAME)).Trim();
         //throw if a division already goes by the new name
-        if (season.Divisions.FirstOrDefault(d => d.DivisionName.Equals(newDivisionName, StringComparison.CurrentCultureIgnoreCase)) is { })
+        if (season.Divisions.FirstOrDefault(d => d.DivisionName.ToLower().Equals(newDivisionName.ToLower())) is { })
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
@@ -85,10 +90,11 @@ internal class RenameDivision : CommandBase
 
     private async static Task<Season?> GetSeasonOrDefault(SocketSlashCommand slashCommand, LeagueDBContext dBContext)
     {
+        IIncludableQueryable<Season, List<Division>> Seasons = dBContext.Seasons.Include(s => s.Divisions);
         if (slashCommand.Data.Options.FirstOrDefault(o => o.Name == SEASONNUMBEROPTIONNAME) is SocketSlashCommandDataOption seasonNumberOption)
         {
             long seasonNumber = (long)seasonNumberOption.Value;
-            if (await dBContext.Seasons.FirstOrDefaultAsync(s => s.SeasonNumber == seasonNumber) is Season season)
+            if (await Seasons.FirstOrDefaultAsync(s => s.SeasonNumber == seasonNumber) is Season season)
             {
                 return season;
             }
@@ -98,7 +104,7 @@ internal class RenameDivision : CommandBase
                 return null;
             }
         }
-        else if (await dBContext.Seasons.FirstOrDefaultAsync(s => s.State == Season.SeasonState.Unpublished) is Season season)
+        else if (await Seasons.FirstOrDefaultAsync(s => s.State == Season.SeasonState.Unpublished) is Season season)
         {
             return season;
         }

@@ -12,6 +12,7 @@ namespace MLE_Infobot.Commands;
 internal abstract partial class CommandBase
 {
     public abstract Task RegisterCommand(DiscordSocketClient client, SocketGuild guild);
+    public abstract Task SubscribeCommand(DiscordSocketClient client);
 
     public static bool IsAdmin(SocketSlashCommand slashCommand)
     {
@@ -40,6 +41,6 @@ internal abstract partial class CommandBase
 
     internal class Messages
     {
-        internal const string REQUIRESADMIN = "Requires league administrator priviledges.";
+        internal const string REQUIRESADMIN = "Requires league administrator privileges.";
     }
 }

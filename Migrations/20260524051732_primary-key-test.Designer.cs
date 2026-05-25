@@ -10,14 +10,36 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MLE_Infobot.Migrations
 {
     [DbContext(typeof(LeagueDBContext))]
-    [Migration("20260311224257_Leaguev0-0-1")]
-    partial class Leaguev001
+    [Migration("20260524051732_primary-key-test")]
+#pragma warning disable CS8981 // The type name only contains lower-cased ascii characters. Such names may become reserved for the language.
+    partial class primarykeytest
+#pragma warning restore CS8981 // The type name only contains lower-cased ascii characters. Such names may become reserved for the language.
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.13");
+
+            modelBuilder.Entity("MLE_Infobot.Division", b =>
+                {
+                    b.Property<int>("DivisionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DivisionName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SeasonId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("DivisionId");
+
+                    b.HasIndex("SeasonId");
+
+                    b.ToTable("Division");
+                });
 
             modelBuilder.Entity("MLE_Infobot.Game", b =>
                 {
@@ -37,7 +59,7 @@ namespace MLE_Infobot.Migrations
                     b.Property<int>("HomePlayerWins")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("MatchId")
+                    b.Property<int>("MatchId")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("GameId");
@@ -45,6 +67,25 @@ namespace MLE_Infobot.Migrations
                     b.HasIndex("MatchId");
 
                     b.ToTable("Game");
+                });
+
+            modelBuilder.Entity("MLE_Infobot.MappingVal", b =>
+                {
+                    b.Property<int>("MappingValId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MappingValue")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("WeekId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("MappingValId");
+
+                    b.HasIndex("WeekId");
+
+                    b.ToTable("MappingVal");
                 });
 
             modelBuilder.Entity("MLE_Infobot.Match", b =>
@@ -62,6 +103,9 @@ namespace MLE_Infobot.Migrations
                     b.Property<int>("WeekId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("Winner")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("MatchId");
 
                     b.HasIndex("AwaySquadId");
@@ -73,16 +117,56 @@ namespace MLE_Infobot.Migrations
                     b.ToTable("Match");
                 });
 
+            modelBuilder.Entity("MLE_Infobot.PlayerName", b =>
+                {
+                    b.Property<int>("PlayerNameId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("PlayerUserID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PlayerUsername")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("PlayerNameId");
+
+                    b.ToTable("PlayerNames");
+                });
+
+            modelBuilder.Entity("MLE_Infobot.PlayerSquadPlayer", b =>
+                {
+                    b.Property<int>("PlayerSquadPlayerId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("PlayerID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SquadId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SquadPlayerId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("PlayerSquadPlayerId");
+
+                    b.HasIndex("SquadId");
+
+                    b.ToTable("PlayerSquadPlayer");
+                });
+
             modelBuilder.Entity("MLE_Infobot.Season", b =>
                 {
                     b.Property<int>("SeasonId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("NumberOfSeasonWeeks")
+                    b.Property<long>("SeasonNumber")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("SeasonNumber")
+                    b.Property<int>("State")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("SeasonId");
@@ -96,7 +180,10 @@ namespace MLE_Infobot.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("SeasonId")
+                    b.Property<int>("DivisionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SquadNumber")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("TeamId")
@@ -104,11 +191,33 @@ namespace MLE_Infobot.Migrations
 
                     b.HasKey("SquadId");
 
-                    b.HasIndex("SeasonId");
+                    b.HasIndex("DivisionId");
 
                     b.HasIndex("TeamId");
 
                     b.ToTable("Squad");
+                });
+
+            modelBuilder.Entity("MLE_Infobot.SubstituteSquadPlayer", b =>
+                {
+                    b.Property<int>("SubstituteSquadPlayerId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("PlayerID")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SquadId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SquadPlayerId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("SubstituteSquadPlayerId");
+
+                    b.HasIndex("SquadId");
+
+                    b.ToTable("SubstituteSquadPlayer");
                 });
 
             modelBuilder.Entity("MLE_Infobot.Substitution", b =>
@@ -117,7 +226,7 @@ namespace MLE_Infobot.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("MatchId")
+                    b.Property<int>("MatchId")
                         .HasColumnType("INTEGER");
 
                     b.Property<ulong>("PlayerID")
@@ -175,6 +284,9 @@ namespace MLE_Infobot.Migrations
                     b.Property<int>("SeasonId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("State")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("WeekNumber")
                         .HasColumnType("INTEGER");
 
@@ -191,6 +303,9 @@ namespace MLE_Infobot.Migrations
                 {
                     b.HasBaseType("MLE_Infobot.Week");
 
+                    b.Property<int>("PlayoffWeekId")
+                        .HasColumnType("INTEGER");
+
                     b.HasIndex("SeasonId");
 
                     b.HasDiscriminator().HasValue("PlayoffWeek");
@@ -200,16 +315,45 @@ namespace MLE_Infobot.Migrations
                 {
                     b.HasBaseType("MLE_Infobot.Week");
 
+                    b.Property<int>("SeasonWeekId")
+                        .HasColumnType("INTEGER");
+
                     b.HasIndex("SeasonId");
 
                     b.HasDiscriminator().HasValue("SeasonWeek");
                 });
 
+            modelBuilder.Entity("MLE_Infobot.Division", b =>
+                {
+                    b.HasOne("MLE_Infobot.Season", "Season")
+                        .WithMany("Divisions")
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Season");
+                });
+
             modelBuilder.Entity("MLE_Infobot.Game", b =>
                 {
-                    b.HasOne("MLE_Infobot.Match", null)
+                    b.HasOne("MLE_Infobot.Match", "Match")
                         .WithMany("Games")
-                        .HasForeignKey("MatchId");
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Match");
+                });
+
+            modelBuilder.Entity("MLE_Infobot.MappingVal", b =>
+                {
+                    b.HasOne("MLE_Infobot.Week", "Week")
+                        .WithMany("Players123Mappings")
+                        .HasForeignKey("WeekId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Week");
                 });
 
             modelBuilder.Entity("MLE_Infobot.Match", b =>
@@ -239,11 +383,22 @@ namespace MLE_Infobot.Migrations
                     b.Navigation("Week");
                 });
 
+            modelBuilder.Entity("MLE_Infobot.PlayerSquadPlayer", b =>
+                {
+                    b.HasOne("MLE_Infobot.Squad", "Squad")
+                        .WithMany("PlayerIDs")
+                        .HasForeignKey("SquadId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Squad");
+                });
+
             modelBuilder.Entity("MLE_Infobot.Squad", b =>
                 {
-                    b.HasOne("MLE_Infobot.Season", "Season")
+                    b.HasOne("MLE_Infobot.Division", "Division")
                         .WithMany("Squads")
-                        .HasForeignKey("SeasonId")
+                        .HasForeignKey("DivisionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -253,16 +408,31 @@ namespace MLE_Infobot.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Season");
+                    b.Navigation("Division");
 
                     b.Navigation("Team");
                 });
 
+            modelBuilder.Entity("MLE_Infobot.SubstituteSquadPlayer", b =>
+                {
+                    b.HasOne("MLE_Infobot.Squad", "Squad")
+                        .WithMany("SubstituteIDs")
+                        .HasForeignKey("SquadId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Squad");
+                });
+
             modelBuilder.Entity("MLE_Infobot.Substitution", b =>
                 {
-                    b.HasOne("MLE_Infobot.Match", null)
+                    b.HasOne("MLE_Infobot.Match", "Match")
                         .WithMany("Substitutions")
-                        .HasForeignKey("MatchId");
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Match");
                 });
 
             modelBuilder.Entity("MLE_Infobot.PlayoffWeek", b =>
@@ -287,6 +457,11 @@ namespace MLE_Infobot.Migrations
                     b.Navigation("Season");
                 });
 
+            modelBuilder.Entity("MLE_Infobot.Division", b =>
+                {
+                    b.Navigation("Squads");
+                });
+
             modelBuilder.Entity("MLE_Infobot.Match", b =>
                 {
                     b.Navigation("Games");
@@ -296,16 +471,25 @@ namespace MLE_Infobot.Migrations
 
             modelBuilder.Entity("MLE_Infobot.Season", b =>
                 {
+                    b.Navigation("Divisions");
+
                     b.Navigation("PlayoffWeeks");
 
                     b.Navigation("SeasonWeeks");
+                });
 
-                    b.Navigation("Squads");
+            modelBuilder.Entity("MLE_Infobot.Squad", b =>
+                {
+                    b.Navigation("PlayerIDs");
+
+                    b.Navigation("SubstituteIDs");
                 });
 
             modelBuilder.Entity("MLE_Infobot.Week", b =>
                 {
                     b.Navigation("Matches");
+
+                    b.Navigation("Players123Mappings");
                 });
 #pragma warning restore 612, 618
         }

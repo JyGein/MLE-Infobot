@@ -17,9 +17,12 @@ internal class AddTeam : CommandBase
     const string TEAMLOGOOPTIONNAME = "team-logo";
     const string TEAMCAPTAINOPTIONNAME = "team-captain";
 
-    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    public override async Task SubscribeCommand(DiscordSocketClient client)
     {
         client.SlashCommandExecuted += CommandExecuted;
+    }
+    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
             .WithDescription($"Adds a team to the league. {Messages.REQUIRESADMIN}")

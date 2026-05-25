@@ -18,9 +18,12 @@ internal class AddDivision : CommandBase
 
     const string DIVISIONOPTIONNAME = "division";
 
-    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    public override async Task SubscribeCommand(DiscordSocketClient client)
     {
         client.SlashCommandExecuted += CommandExecuted;
+    }
+    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
             .WithDescription($"Adds a new division to the next season. {Messages.REQUIRESADMIN}")
@@ -46,7 +49,7 @@ internal class AddDivision : CommandBase
 
         Season season = await dBContext.Seasons.FirstAsync(s => s.State == Season.SeasonState.Unpublished);
         string divisionName = ((string)slashCommand.Data.Options.First(o => o.Name == DIVISIONOPTIONNAME)).Trim();
-        if (season.Divisions.FirstOrDefault(d => d.DivisionName.Equals(divisionName, StringComparison.CurrentCultureIgnoreCase)) is { })
+        if (season.Divisions.FirstOrDefault(d => d.DivisionName.ToLower().Equals(divisionName.ToLower())) is { })
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {

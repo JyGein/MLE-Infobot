@@ -16,9 +16,12 @@ internal class EditTeamCaptain : CommandBase
     const string TEAMROLEOPTIONNAME = "team-role";
     const string TEAMCAPTAINOPTIONNAME = "team-captain";
 
-    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    public override async Task SubscribeCommand(DiscordSocketClient client)
     {
         client.SlashCommandExecuted += CommandExecuted;
+    }
+    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
             .WithDescription($"Edit's an existing team's captain. {Messages.REQUIRESADMIN}")
@@ -59,10 +62,11 @@ internal class EditTeamCaptain : CommandBase
         await dBContext.DisposeAsync();
 
         Console.WriteLine($"{team.TeamName} captain was changed from {oldTeamCaptainUsername ?? teamCaptain.Username} to {teamCaptain.GlobalName ?? teamCaptain.Username}.");
+        Embed[] embeds = { (await team.GetDefaultEmbed()).Build() };
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
         {
             mp.Content = $"Successfully changed {team.TeamName} captain from {oldTeamCaptainUsername ?? teamCaptain.Username} to {teamCaptain.GlobalName ?? teamCaptain.Username}.";
-            mp.Embeds = new Embed[] { (await team.GetDefaultEmbed()).Build() };
+            mp.Embeds = embeds;
         });
     }
 }

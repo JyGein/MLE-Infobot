@@ -5,62 +5,73 @@
 namespace MLE_Infobot.Migrations
 {
     /// <inheritdoc />
-    public partial class Leaguev001 : Migration
+    public partial class WithDivisions : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "TeamName",
-                table: "Teams",
-                type: "TEXT",
-                nullable: false,
-                defaultValue: "");
-
-            migrationBuilder.AddColumn<bool>(
-                name: "Unlinked",
-                table: "Teams",
-                type: "INTEGER",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.AddColumn<int>(
-                name: "NumberOfSeasonWeeks",
-                table: "Seasons",
-                type: "INTEGER",
-                nullable: false,
-                defaultValue: 0);
-
-            migrationBuilder.AddColumn<int>(
-                name: "SeasonNumber",
-                table: "Seasons",
-                type: "INTEGER",
-                nullable: false,
-                defaultValue: 0);
-
             migrationBuilder.CreateTable(
-                name: "Squad",
+                name: "PlayerNames",
                 columns: table => new
                 {
-                    SquadId = table.Column<int>(type: "INTEGER", nullable: false)
+                    PlayerNameId = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    TeamId = table.Column<int>(type: "INTEGER", nullable: false),
+                    PlayerUserID = table.Column<ulong>(type: "INTEGER", nullable: false),
+                    PlayerUsername = table.Column<string>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PlayerNames", x => x.PlayerNameId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Seasons",
+                columns: table => new
+                {
+                    SeasonId = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    SeasonNumber = table.Column<long>(type: "INTEGER", nullable: false),
+                    State = table.Column<int>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Seasons", x => x.SeasonId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Teams",
+                columns: table => new
+                {
+                    TeamId = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    TeamRoleID = table.Column<ulong>(type: "INTEGER", nullable: false),
+                    TeamName = table.Column<string>(type: "TEXT", nullable: false),
+                    TeamLogoURL = table.Column<string>(type: "TEXT", nullable: false),
+                    TeamCaptainID = table.Column<ulong>(type: "INTEGER", nullable: false),
+                    Unlinked = table.Column<bool>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Teams", x => x.TeamId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Division",
+                columns: table => new
+                {
+                    DivisionId = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    DivisionName = table.Column<string>(type: "TEXT", nullable: false),
                     SeasonId = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Squad", x => x.SquadId);
+                    table.PrimaryKey("PK_Division", x => x.DivisionId);
                     table.ForeignKey(
-                        name: "FK_Squad_Seasons_SeasonId",
+                        name: "FK_Division_Seasons_SeasonId",
                         column: x => x.SeasonId,
                         principalTable: "Seasons",
                         principalColumn: "SeasonId",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Squad_Teams_TeamId",
-                        column: x => x.TeamId,
-                        principalTable: "Teams",
-                        principalColumn: "TeamId",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -72,6 +83,7 @@ namespace MLE_Infobot.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     WeekNumber = table.Column<int>(type: "INTEGER", nullable: false),
                     SeasonId = table.Column<int>(type: "INTEGER", nullable: false),
+                    State = table.Column<int>(type: "INTEGER", nullable: false),
                     Discriminator = table.Column<string>(type: "TEXT", maxLength: 13, nullable: false)
                 },
                 constraints: table =>
@@ -86,6 +98,33 @@ namespace MLE_Infobot.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Squad",
+                columns: table => new
+                {
+                    SquadId = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    SquadNumber = table.Column<int>(type: "INTEGER", nullable: false),
+                    TeamId = table.Column<int>(type: "INTEGER", nullable: false),
+                    DivisionId = table.Column<int>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Squad", x => x.SquadId);
+                    table.ForeignKey(
+                        name: "FK_Squad_Division_DivisionId",
+                        column: x => x.DivisionId,
+                        principalTable: "Division",
+                        principalColumn: "DivisionId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Squad_Teams_TeamId",
+                        column: x => x.TeamId,
+                        principalTable: "Teams",
+                        principalColumn: "TeamId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Match",
                 columns: table => new
                 {
@@ -93,7 +132,8 @@ namespace MLE_Infobot.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     WeekId = table.Column<int>(type: "INTEGER", nullable: false),
                     HomeSquadId = table.Column<int>(type: "INTEGER", nullable: false),
-                    AwaySquadId = table.Column<int>(type: "INTEGER", nullable: false)
+                    AwaySquadId = table.Column<int>(type: "INTEGER", nullable: false),
+                    Winner = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -124,11 +164,11 @@ namespace MLE_Infobot.Migrations
                 {
                     GameId = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
+                    MatchId = table.Column<int>(type: "INTEGER", nullable: false),
                     HomePlayerID = table.Column<ulong>(type: "INTEGER", nullable: false),
                     AwayPlayerID = table.Column<ulong>(type: "INTEGER", nullable: false),
                     HomePlayerWins = table.Column<int>(type: "INTEGER", nullable: false),
-                    AwayPlayerWins = table.Column<int>(type: "INTEGER", nullable: false),
-                    MatchId = table.Column<int>(type: "INTEGER", nullable: true)
+                    AwayPlayerWins = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -137,7 +177,8 @@ namespace MLE_Infobot.Migrations
                         name: "FK_Game_Match_MatchId",
                         column: x => x.MatchId,
                         principalTable: "Match",
-                        principalColumn: "MatchId");
+                        principalColumn: "MatchId",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -146,9 +187,9 @@ namespace MLE_Infobot.Migrations
                 {
                     SubstitutionId = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
+                    MatchId = table.Column<int>(type: "INTEGER", nullable: false),
                     PlayerID = table.Column<ulong>(type: "INTEGER", nullable: false),
-                    SubstituteID = table.Column<ulong>(type: "INTEGER", nullable: false),
-                    MatchId = table.Column<int>(type: "INTEGER", nullable: true)
+                    SubstituteID = table.Column<ulong>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -157,8 +198,14 @@ namespace MLE_Infobot.Migrations
                         name: "FK_Substitution_Match_MatchId",
                         column: x => x.MatchId,
                         principalTable: "Match",
-                        principalColumn: "MatchId");
+                        principalColumn: "MatchId",
+                        onDelete: ReferentialAction.Cascade);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Division_SeasonId",
+                table: "Division",
+                column: "SeasonId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Game_MatchId",
@@ -181,9 +228,9 @@ namespace MLE_Infobot.Migrations
                 column: "WeekId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Squad_SeasonId",
+                name: "IX_Squad_DivisionId",
                 table: "Squad",
-                column: "SeasonId");
+                column: "DivisionId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Squad_TeamId",
@@ -208,6 +255,9 @@ namespace MLE_Infobot.Migrations
                 name: "Game");
 
             migrationBuilder.DropTable(
+                name: "PlayerNames");
+
+            migrationBuilder.DropTable(
                 name: "Substitution");
 
             migrationBuilder.DropTable(
@@ -219,21 +269,14 @@ namespace MLE_Infobot.Migrations
             migrationBuilder.DropTable(
                 name: "Week");
 
-            migrationBuilder.DropColumn(
-                name: "TeamName",
-                table: "Teams");
+            migrationBuilder.DropTable(
+                name: "Division");
 
-            migrationBuilder.DropColumn(
-                name: "Unlinked",
-                table: "Teams");
+            migrationBuilder.DropTable(
+                name: "Teams");
 
-            migrationBuilder.DropColumn(
-                name: "NumberOfSeasonWeeks",
-                table: "Seasons");
-
-            migrationBuilder.DropColumn(
-                name: "SeasonNumber",
-                table: "Seasons");
+            migrationBuilder.DropTable(
+                name: "Seasons");
         }
     }
 }

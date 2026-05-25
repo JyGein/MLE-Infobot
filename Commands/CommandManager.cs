@@ -12,8 +12,7 @@ namespace MLE_Infobot.Commands;
 
 internal class CommandManager
 {
-    //should be commented out as necessary when building, when ran will update each command not commented out in a slow operation.
-    public static List<CommandBase> CommandsToRegister = [
+    public static List<CommandBase> CommandsToSubscribe = [
         new AddDivision(),
         new AddSquad(),
         new AddTeam(),
@@ -22,14 +21,35 @@ internal class CommandManager
         new EditTeamLogo(),
         new EditTeamName(),
         new RemoveTeam(),
-        new ViewSeason()
+        new ViewSeason(),
+        new RenameDivision()
+        ];
+    //should be commented out as necessary when building, when ran will update each command not commented out in a slow operation.
+    public static List<CommandBase> CommandsToRegister = [
+        //new AddDivision(),
+        //new AddSquad(),
+        //new AddTeam(),
+        //new CreateSeason(),
+        //new EditTeamCaptain(),
+        //new EditTeamLogo(),
+        //new EditTeamName(),
+        //new RemoveTeam(),
+        //new ViewSeason(),
+        //new RenameDivision()
         ];
     public static async Task CreateCommands(DiscordSocketClient client)
     {
         //We only care about the server that this bot will be deployed into, the released bot will have the MLE server id in their environment.
         SocketGuild guild = Program.Guild;
-        await guild.DeleteApplicationCommandsAsync();
-        
+        //await guild.DeleteApplicationCommandsAsync();
+
+        client.SlashCommandExecuted += async (slashCommand) => { Console.WriteLine($"Recieved command {slashCommand.CommandName}."); };
+
+        foreach (CommandBase command in CommandsToSubscribe)
+        {
+            await command.SubscribeCommand(client);
+        }
+
         foreach (CommandBase command in CommandsToRegister)
         {
             try

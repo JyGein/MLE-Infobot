@@ -15,9 +15,12 @@ internal class EditTeamName : CommandBase
     const string TEAMROLEOPTIONNAME = "team-role";
     const string TEAMNAMEOPTIONNAME = "team-name";
 
-    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    public override async Task SubscribeCommand(DiscordSocketClient client)
     {
         client.SlashCommandExecuted += CommandExecuted;
+    }
+    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
             .WithDescription($"Edit's an existing team's name. {Messages.REQUIRESADMIN}")
@@ -56,15 +59,11 @@ internal class EditTeamName : CommandBase
         await dBContext.DisposeAsync();
 
         Console.WriteLine($"{oldTeamName} name was changed to {teamName}.");
-        await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
-        {
-            mp.Content = $"Successfully changed their logo!";
-            mp.Embeds = new Embed[] { (await team.GetDefaultEmbed()).Build() };
-        });
+        Embed[] embeds = { (await team.GetDefaultEmbed()).Build() };
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
         {
             mp.Content = $"Successfully changed {oldTeamName} to {teamName}";
-            mp.Embeds = new Embed[] { (await team.GetDefaultEmbed()).Build() };
+            mp.Embeds = embeds;
         });
     }
 }

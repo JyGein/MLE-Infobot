@@ -15,9 +15,12 @@ internal class EditTeamLogo : CommandBase
     const string TEAMROLEOPTIONNAME = "team-role";
     const string TEAMLOGOOPTIONNAME = "team-logo";
 
-    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    public override async Task SubscribeCommand(DiscordSocketClient client)
     {
         client.SlashCommandExecuted += CommandExecuted;
+    }
+    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
             .WithDescription($"Edit's an existing team's logo. {Messages.REQUIRESADMIN}")
@@ -64,10 +67,11 @@ internal class EditTeamLogo : CommandBase
         await dBContext.DisposeAsync();
 
         Console.WriteLine($"{team.TeamName} logo was changed from {oldTeamLogo} to {teamLogo.Url}.");
+        Embed[] embeds = { (await team.GetDefaultEmbed()).Build() };
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
         {
             mp.Content = $"Successfully changed their logo!";
-            mp.Embeds = new Embed[] { (await team.GetDefaultEmbed()).Build() };
+            mp.Embeds = embeds;
         });
     }
 }

@@ -19,10 +19,13 @@ internal partial class RemoveTeam : CommandBase
 
     const string TEAMROLEOPTIONNAME = "team-role";
 
-    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    public override async Task SubscribeCommand(DiscordSocketClient client)
     {
         client.SlashCommandExecuted += CommandExecuted;
         client.ButtonExecuted += ButtonClicked;
+    }
+    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
             .WithDescription($"Unlinks the team from their role. {Messages.REQUIRESADMIN}")

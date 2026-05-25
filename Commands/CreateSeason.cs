@@ -12,16 +12,15 @@ namespace MLE_Infobot.Commands;
 internal class CreateSeason : CommandBase
 {
     const string COMMANDNAME = "create-season";
-
-    const string NUMBEROFWEEKSOPTIONNAME = "number-of-weeks";
-
-    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    public override async Task SubscribeCommand(DiscordSocketClient client)
     {
         client.SlashCommandExecuted += CommandExecuted;
+    }
+    public override async Task RegisterCommand(DiscordSocketClient client, SocketGuild guild)
+    {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
             .WithDescription($"Creates a new season. {Messages.REQUIRESADMIN}")
-            .AddOption(NUMBEROFWEEKSOPTIONNAME, ApplicationCommandOptionType.Integer, "The number of weeks of the main season.", isRequired: true)
             .Build());
     }
 
@@ -39,22 +38,16 @@ internal class CreateSeason : CommandBase
             await slashCommand.RespondAsync("There is already an unpublished season!", ephemeral: true);
             return;
         }
-        long numberOfWeeks = (long)slashCommand.Data.Options.First(o => o.Name == NUMBEROFWEEKSOPTIONNAME).Value;
-        if (numberOfWeeks < 1)
-        {
-            await slashCommand.RespondAsync("You need a minimum of 1 week!", ephemeral: true);
-            return;
-        }
         await slashCommand.DeferAsync(ephemeral: true);
          
-        Season season = new() { NumberOfSeasonWeeks = numberOfWeeks, SeasonNumber = (!await dBContext.Seasons.AnyAsync()) ? 1 : (await dBContext.Seasons.OrderBy(s => s.SeasonNumber).FirstAsync()).SeasonNumber + 1, State = Season.SeasonState.Unpublished };
+        Season season = new() { SeasonNumber = (!await dBContext.Seasons.AnyAsync()) ? 1 : (await dBContext.Seasons.OrderBy(s => s.SeasonNumber).FirstAsync()).SeasonNumber + 1, State = Season.SeasonState.Unpublished };
 
         await dBContext.AddAsync(season);
 
         await dBContext.SaveChangesAsync();
         await dBContext.DisposeAsync();
 
-        Console.WriteLine($"Season number {season.SeasonNumber} created with {numberOfWeeks}");
+        Console.WriteLine($"Season number {season.SeasonNumber} created.");
         await slashCommand.ModifyOriginalResponseAsync((mp) =>
         {
             mp.Content = $"Season number {season.SeasonNumber} sucessfully added to the league! Start adding squads with /add-squad.";
