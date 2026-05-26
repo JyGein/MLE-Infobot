@@ -122,17 +122,23 @@ internal partial class RemoveTeam : CommandBase
         //Checks if any match in any published season has a squad from the team, if not it'll just remove the team from the database and any unpublished seasons, otherwise it'll auto-lose matches for that team in the current season and do a regular role unlink.
         bool fullyRemovedTeamFlag = false;
         bool randomizedUnpublishedSeasonMatches = false;
-        if (await dBContext.Seasons.AnyAsync(s => s.State != Season.SeasonState.Unpublished && s.SeasonWeeks.Cast<Week>().Concat(s.PlayoffWeeks).Any(w => w.Matches.Any(m => m.HomeSquad.Team == team || m.AwaySquad.Team == team))))
+        if (await dBContext.Seasons.Include(s => s.SeasonWeeks).Include(s => s.PlayoffWeeks).AnyAsync(s => s.State != Season.SeasonState.Unpublished && s.SeasonWeeks.Cast<Week>().Concat(s.PlayoffWeeks).Any(w => dBContext.Entry(w).Collection(w => w.Matches).Query().Any(m => dBContext.Entry(m).Reference(m => m.HomeSquad).Query().Include(s => s.Team).Single().Team == team || dBContext.Entry(m).Reference(m => m.AwaySquad).Query().Include(s => s.Team).Single().Team == team))))
         {
             if (await dBContext.Seasons.FirstOrDefaultAsync(season => season.State == Season.SeasonState.Started) is Season season)
             {
-                foreach (Week week in season.SeasonWeeks.Cast<Week>().Concat(season.PlayoffWeeks))
+                foreach (Week week in dBContext.Entry(season).Collection(s => s.SeasonWeeks).Query().Cast<Week>().Concat(dBContext.Entry(season).Collection(s => s.PlayoffWeeks).Query()))
                 {
-                    foreach (Match match in week.Matches.Where(m => m.HomeSquad.Team == team || m.AwaySquad.Team == team))
+                    foreach (Match match in dBContext.Entry(week).Collection(w => w.Matches).Query().Where(m => dBContext.Entry(m).Reference(m => m.HomeSquad).Query().Include(s => s.Team).Single().Team == team || dBContext.Entry(m).Reference(m => m.AwaySquad).Query().Include(s => s.Team).Single().Team == team))
                     {
                         if (match.Winner == Match.MatchState.Undecided) match.Winner = match.HomeSquad.Team == team ? Match.MatchState.Away : Match.MatchState.Home;
                     }
                 }
+            }
+            if (await dBContext.Seasons.Include(s => s.Divisions).ThenInclude(d => d.Squads).ThenInclude(s => s.Team).FirstOrDefaultAsync(season => season.State == Season.SeasonState.Unpublished) is Season unpublishedSeason)
+            {
+                randomizedUnpublishedSeasonMatches = true;
+                unpublishedSeason.Squads.RemoveAll(s => s.Team == team);
+                await unpublishedSeason.RandomizeGuaranteedMatches();
             }
             team.TeamRoleID = 0;
             team.Unlinked = true;
@@ -140,7 +146,7 @@ internal partial class RemoveTeam : CommandBase
         else
         {
             fullyRemovedTeamFlag = true;
-            if (await dBContext.Seasons.FirstOrDefaultAsync(season => season.State == Season.SeasonState.Unpublished) is Season season)
+            if (await dBContext.Seasons.Include(s => s.Divisions).ThenInclude(d => d.Squads).ThenInclude(s => s.Team).FirstOrDefaultAsync(season => season.State == Season.SeasonState.Unpublished) is Season season)
             {
                 randomizedUnpublishedSeasonMatches = true;
                 season.Squads.RemoveAll(s => s.Team == team);
@@ -150,10 +156,11 @@ internal partial class RemoveTeam : CommandBase
         }
         
         await dBContext.SaveChangesAsync();
-        await dBContext.DisposeAsync();
 
         InteractionCache.Remove(interactionKey);
         await messageComponent.ModifyOriginalResponseAsync(mp => { mp.Content = fullyRemovedTeamFlag ? $"Team {team.TeamName} was successfully deleted from the league." + (randomizedUnpublishedSeasonMatches ? " Randomization of the unpublished season was required and executed." : "") : $"Team {team.TeamName} was successfully unlinked from it's role."; });
         await confirmationMessage.ModifyAsync(mp => { mp.Components = null; mp.Content = confirmationMessage.Content + "\n[Confirmed]"; });
+
+        await dBContext.DisposeAsync();
     }
 }

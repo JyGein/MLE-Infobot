@@ -5,6 +5,9 @@ using MLE_Infobot.Commands;
 using Newtonsoft.Json;
 using System;
 using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,6 +32,7 @@ class Program
 #nullable disable
     public static DiscordSocketClient Client;
     public static SocketGuild Guild => Client.GetGuild(ulong.Parse(Environment.GetEnvironmentVariable("GUILD_ID")!));
+    public static HttpClient HttpClient;
 #nullable enable
 
     // Discord.Net heavily utilizes TAP for async, so we create
@@ -48,9 +52,12 @@ class Program
         // using it, at the end of your app's lifetime.
         Client = new DiscordSocketClient(config);
 
+        HttpClient = new();
+
         // Subscribing to client events, so that we may receive them whenever they're invoked.
         Client.Log += LogAsync;
         Client.Ready += ReadyAsync;
+        AppDomain.CurrentDomain.ProcessExit += On_ProcessExit;
         //_client.MessageReceived += MessageReceivedAsync;
         //_client.InteractionCreated += InteractionCreatedAsync;
 
@@ -62,6 +69,12 @@ class Program
 
         // Block the program until it is closed.
         await Task.Delay(Timeout.Infinite);
+    }
+
+    private static async void On_ProcessExit(object? sender, EventArgs e)
+    {
+        HttpClient.Dispose();
+        await Client.DisposeAsync();
     }
 
     private static Task LogAsync(LogMessage log)
@@ -125,5 +138,27 @@ class Program
         var root = Directory.GetCurrentDirectory();
         var dotenv = Path.Combine(root, "secrets.env");
         DotEnv.Load(dotenv);
+    }
+
+    /// <summary>
+    /// make sure that the uri is valid i stg
+    /// </summary>
+    /// <param name="uri">a VALID uri</param>
+    /// <returns></returns>
+    public static async Task<string> SaveImage(Uri uri, string fileName)
+    {
+        string? extension = Path.GetExtension(uri.GetLeftPart(UriPartial.Path));
+        byte[] imageBytes = await HttpClient.GetByteArrayAsync(uri);
+
+        Environment.SpecialFolder folder = Environment.SpecialFolder.LocalApplicationData;
+        string path = Environment.GetFolderPath(folder);
+        path = Path.Join(path, $"MLE-Infobot\\{fileName}{extension}");
+
+        await File.WriteAllBytesAsync(path, imageBytes);
+        return path;
+    }
+    public static async Task<string> SaveImage(string uri, string fileName)
+    {
+        return await SaveImage(new Uri(uri), fileName);
     }
 }

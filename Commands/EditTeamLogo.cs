@@ -60,18 +60,21 @@ internal class EditTeamLogo : CommandBase
             });
             return;
         }
-        string oldTeamLogo = team.TeamLogoURL;
+        string teamLogoPath = await Program.SaveImage(teamLogo.Url, team.TeamName + "Logo");
 
-        team.TeamLogoURL = teamLogo.Url;
+        team.TeamLogoURL = teamLogoPath;
         await dBContext.SaveChangesAsync();
-        await dBContext.DisposeAsync();
 
-        Console.WriteLine($"{team.TeamName} logo was changed from {oldTeamLogo} to {teamLogo.Url}.");
-        Embed[] embeds = { (await team.GetDefaultEmbed()).Build() };
+        Console.WriteLine($"{team.TeamName} logo was changed.");
+        (EmbedBuilder embedbuilder, FileAttachment teamLogoAttachment) = await team.GetDefaultEmbed();
+        Embed[] embed = [embedbuilder.Build()];
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
         {
             mp.Content = $"Successfully changed their logo!";
-            mp.Embeds = embeds;
+            mp.Embeds = embed;
+            mp.Attachments = new List<FileAttachment> { teamLogoAttachment };
         });
+
+        await dBContext.DisposeAsync();
     }
 }

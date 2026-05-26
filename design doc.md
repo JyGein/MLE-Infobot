@@ -28,6 +28,9 @@ Shows all of the matches for the season. Defaults to current season.
 Admin: Requires admin perms to display a season not published.  
 Throws if season does not exist.
 
+**view-team <team-role: discord role>**
+Displays that team's info to the user.
+
 ### FUTURE:
 Commands that tell the user various game records.
 Commands to show previous weeks/seasons.
@@ -64,7 +67,7 @@ Changes the players on a team's squad in the current unpublished season.
 
 **subsitute <team-role: discord role> <squad-number: int> <player: discord user> <sub: discord user> [week-number: int]**  
 Substitutes the player with the sub for the current season. Defaults to the next week.  
-Throws if the sub or player are not in that squad and team.
+Throws if the sub or player are not in that squad.
 
 **remove-squad <team-role: discord role> <squad-number: int>**  
 Removes the squad from the unpublished season.  
@@ -98,6 +101,10 @@ Swaps two squad's matchup for that season and week.
 Throws if season/week/team/squad doesn't exist.
 Note: This is technically all you need to manually enter the matches from a randomized season, but can add more commands to make manual input easier.
 
+**change-player-mappings <season-number: int> <week-number: int> <one-to: int> <two-to: int> <three-to: int>**  
+Changes the player mappings for that week. Only works on generated weeks.
+Dangerous; public confirmation message if on a published week.
+
 **swap-home-away <season-number: int> <week-number: int> <team: discord role> <squad: int>**  
 Swaps who is home and who is away for that squad's match for that season and week.  
 Throws if season/week/team/squad doesn't exist.
@@ -109,6 +116,10 @@ Dangerous; public confirmation message.
 **publish-week [publish-channel: discord channel]**  
 Publishes the next week of the current season. Displays "New week!" message in publish-channel, defaults to channel where message is sent.  
 Semi-Dangerous; private confirmation message.
+
+**generate-week [one-to: int] [two-to: int] [three-to: int]**  
+Generate's the next week's matches. Only works if the next unpublished week of the current season has not been randomized and the previous week has had all of it's matches played.  
+The one-to/two-to/three-to optional inputs are for manually setting the player mappings, all three must be set to 1 2 or 3 exclusively, will throw if not inputted properly.
 
 **submit-matches <team: discord role> <squad: int>**  
 Gives an interaction prompting you to fill out the number of wins and loses for each member of the squad.  

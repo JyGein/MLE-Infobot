@@ -2,6 +2,7 @@
 using Discord.Audio.Streams;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -30,7 +31,7 @@ internal sealed class LeagueDBContext : DbContext
     {
         Environment.SpecialFolder folder = Environment.SpecialFolder.LocalApplicationData;
         string path = Environment.GetFolderPath(folder);
-        path = Path.Join(path, "league.db");
+        path = Path.Join(path, "MLE-Infobot\\league.db");
         Console.WriteLine($"Database loaded from: {path}");
         DbPath = path;
     }
@@ -225,6 +226,34 @@ internal class Season
         if (AllWeeks.FirstOrDefault(w => w.State == Week.WeekState.Current) is Week currentWeek) return currentWeek;
         return AllWeeks.First();
     }
+
+    public async Task<EmbedBuilder> GetDivisionsEmbed()
+    {
+        LeagueDBContext dBContext = new();
+        Season season = (Season)(await dBContext.FindAsync(GetType(), SeasonId))!;
+        await dBContext.Entry(season)
+            .Collection(s => s.Divisions)
+            .LoadAsync();
+        EmbedBuilder embedBuilder = new();
+        embedBuilder.WithTitle($"Season {season.SeasonNumber}'s Divisions");
+        if (season.Divisions.Count == 0)
+        {
+            embedBuilder.WithDescription("There are none!");
+        }
+        else
+        {
+            foreach (Division division in season.Divisions)
+            {
+                await dBContext.Entry(division)
+                    .Collection(d => d.Squads)
+                    .LoadAsync();
+                embedBuilder.AddField(new EmbedFieldBuilder()
+                    .WithName($"{division.DivisionName}")
+                    .WithValue($"{division.Squads.Count} Squads"));
+            }
+        }
+        return embedBuilder;
+    }
 }
 
 internal class Team
@@ -236,16 +265,18 @@ internal class Team
     public required ulong TeamCaptainID { get; set; }
     public bool Unlinked { get; set; } = false;
 
-    public async Task<EmbedBuilder> GetDefaultEmbed()
+    public async Task<(EmbedBuilder, FileAttachment)> GetDefaultEmbed()
     {
         LeagueDBContext dBContext = new();
         string teamCaptain = await dBContext.GetPlayerName(TeamCaptainID);
         await dBContext.DisposeAsync();
-        return new EmbedBuilder()
+        FileAttachment teamLogo = new(TeamLogoURL, isThumbnail: true);
+        return (new EmbedBuilder()
             .WithTitle(TeamName)
             .WithColor((await Program.Guild.GetRoleAsync(TeamRoleID)).Color)
-            .WithThumbnailUrl(TeamLogoURL)
-            .WithDescription($"Team Captain: {teamCaptain}");
+            .WithThumbnailUrl($"attachment://{teamLogo.FileName}")
+            .WithDescription($"Team Captain: {teamCaptain}"), 
+            teamLogo);
     }
 }
 
@@ -256,6 +287,27 @@ internal class Division
     public List<Squad> Squads { get; set; } = [];
     public int SeasonId { get; set; }
     public required Season Season { get; set; }
+
+    public async Task<List<EmbedBuilder>> GetSquadsEmbeds()
+    {
+        LeagueDBContext dBContext = new();
+        Division division = (Division)(await dBContext.FindAsync(GetType(), DivisionId))!;
+        await dBContext.Entry(division)
+            .Collection(d => d.Squads)
+            .LoadAsync();
+        await dBContext.Entry(division)
+            .Reference(d => d.Season)
+            .LoadAsync();
+        List<EmbedBuilder> embeds = [];
+        embeds.Add(new EmbedBuilder()
+            .WithTitle($"{DivisionName} Division - Season {division.Season.SeasonNumber}")
+            /*.WithDescription($"Season {division.Season.SeasonNumber}")*/);
+        foreach (Squad s in division.Squads)
+        {
+            embeds.Add(await s.GetDefaultEmbed());
+        }
+        return embeds;
+    }
 }
 
 internal class Squad
@@ -287,19 +339,31 @@ internal class Squad
 
     public async Task<EmbedBuilder> GetDefaultEmbed()
     {
+        LeagueDBContext dBContext = new();
+        Squad squad = (Squad)(await dBContext.FindAsync(GetType(), SquadId))!;
+        await dBContext.Entry(squad)
+            .Collection(s => s.PlayerIDs)
+            .LoadAsync();
+        await dBContext.Entry(squad)
+            .Collection(s => s.SubstituteIDs)
+            .LoadAsync();
+        await dBContext.Entry(squad)
+            .Reference(s => s.Team)
+            .LoadAsync();
         List<EmbedFieldBuilder> fields = [new EmbedFieldBuilder()
             .WithName("Players:")
-            .WithValue(string.Join("\n", PlayerIDs.Select(id => Program.Guild.GetUser(id).DisplayName)))];
-        if (SubstituteIDs.Count > 0)
+            .WithValue(string.Join("\n", squad.PlayerIDs.Select(async id => await dBContext.GetPlayerName(id.PlayerID)).Select(t => t.Result)))];
+        if (squad.SubstituteIDs.Count > 0)
         {
             fields.Add(new EmbedFieldBuilder()
             .WithName("Substitutes:")
-            .WithValue(string.Join("\n", SubstituteIDs.Select(id => Program.Guild.GetUser(id).DisplayName))));
+            .WithValue(string.Join("\n", squad.SubstituteIDs.Select(async id => await dBContext.GetPlayerName(id.PlayerID)).Select(t => t.Result))));
         }
+        FileAttachment teamLogo = new(squad.Team.TeamLogoURL, $"{squad.Team.TeamName}Logo", isThumbnail: true);
         return new EmbedBuilder()
-            .WithTitle($"{Team.TeamName} - Squad {SquadNumber}")
-            .WithColor((await Program.Guild.GetRoleAsync(Team.TeamRoleID)).Color)
-            .WithThumbnailUrl(Team.TeamLogoURL)
+            .WithTitle($"{squad.Team.TeamName} - Squad {squad.SquadNumber}")
+            .WithColor((await Program.Guild.GetRoleAsync(squad.Team.TeamRoleID)).Color)
+            .WithThumbnailUrl(teamLogo.GetAttachmentUrl())
             .WithFields(fields);
     }
 }
@@ -472,6 +536,41 @@ internal class Match
     public int HomeClashWins => Games.Select(g => g.HomePlayerWins).Sum();
     [NotMapped]
     public int AwayClashWins => Games.Select(g => g.AwayPlayerWins).Sum();
+
+    public async Task<EmbedBuilder> GetDefaultEmbed()
+    {
+        LeagueDBContext dBContext = new();
+        Match match = (Match)(await dBContext.FindAsync(GetType(), MatchId))!;
+        await dBContext.Entry(match)
+            .Reference(m => m.Week)
+            .LoadAsync();
+        await dBContext.Entry(match.Week)
+            .Reference(w => w.Season)
+            .LoadAsync();
+        await dBContext.Entry(match)
+            .Collection(m => m.Games)
+            .LoadAsync();
+        await dBContext.Entry(match)
+            .Collection(m => m.Substitutions)
+            .LoadAsync();
+        await dBContext.Entry(match)
+            .Reference(m => m.HomeSquad)
+            .LoadAsync();
+        await dBContext.Entry(match.HomeSquad)
+            .Reference(s => s.Team)
+            .LoadAsync();
+        await dBContext.Entry(match)
+            .Reference(m => m.AwaySquad)
+            .LoadAsync();
+        await dBContext.Entry(match.AwaySquad)
+            .Reference(s => s.Team)
+            .LoadAsync();
+        return new EmbedBuilder()
+            .WithTitle($"Season {match.Week.Season.SeasonNumber} - Week {match.Week.WeekNumber}")
+            .WithFields(new EmbedFieldBuilder()
+                .WithName($"{match.HomeSquad.Team.TeamName} - Squad {match.HomeSquad.SquadNumber} {(match.Winner == Match.MatchState.Undecided ? "vs" : $"{match.HomeGameWins}-{match.AwayGameWins}")} {match.AwaySquad.Team.TeamName} - Squad {match.AwaySquad.SquadNumber}")
+                .WithValue(match.Games.Count > 0 ? string.Join("\n", match.Games.Select(g => $"{dBContext.GetPlayerName(g.HomePlayerIDWithSub)} {(match.Winner == Match.MatchState.Undecided ? "vs" : $"{g.HomePlayerWins}-{g.AwayPlayerWins}")} {dBContext.GetPlayerName(g.AwayPlayerIDWithSub)}")) : "Player matchups will be displayed when the week is published."));
+    }
 }
 
 /// <summary>

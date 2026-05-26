@@ -62,11 +62,13 @@ internal class EditTeamCaptain : CommandBase
         await dBContext.DisposeAsync();
 
         Console.WriteLine($"{team.TeamName} captain was changed from {oldTeamCaptainUsername ?? teamCaptain.Username} to {teamCaptain.GlobalName ?? teamCaptain.Username}.");
-        Embed[] embeds = { (await team.GetDefaultEmbed()).Build() };
+        (EmbedBuilder embedbuilder, FileAttachment teamLogoAttachment) = await team.GetDefaultEmbed();
+        Embed[] embed = [embedbuilder.Build()];
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
         {
             mp.Content = $"Successfully changed {team.TeamName} captain from {oldTeamCaptainUsername ?? teamCaptain.Username} to {teamCaptain.GlobalName ?? teamCaptain.Username}.";
-            mp.Embeds = embeds;
+            mp.Embeds = embed;
+            mp.Attachments = new List<FileAttachment> { teamLogoAttachment };
         });
     }
 }

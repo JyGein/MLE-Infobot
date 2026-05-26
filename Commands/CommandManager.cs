@@ -20,9 +20,12 @@ internal class CommandManager
         new EditTeamCaptain(),
         new EditTeamLogo(),
         new EditTeamName(),
+        new MyMatch(),
         new RemoveTeam(),
+        new RenameDivision(),
+        new ViewDivision(),
         new ViewSeason(),
-        new RenameDivision()
+        new ViewTeam()
         ];
     //should be commented out as necessary when building, when ran will update each command not commented out in a slow operation.
     public static List<CommandBase> CommandsToRegister = [
@@ -33,9 +36,12 @@ internal class CommandManager
         //new EditTeamCaptain(),
         //new EditTeamLogo(),
         //new EditTeamName(),
+        //new MyMatch(),
         //new RemoveTeam(),
+        //new RenameDivision(),
+        //new ViewDivision(),
         //new ViewSeason(),
-        //new RenameDivision()
+        //new ViewTeam()
         ];
     public static async Task CreateCommands(DiscordSocketClient client)
     {

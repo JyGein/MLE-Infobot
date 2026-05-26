@@ -2,7 +2,10 @@
 using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -64,19 +67,24 @@ internal class AddTeam : CommandBase
             });
             return;
         }
+        string teamLogoPath = await Program.SaveImage(teamLogo.Url, teamName + "Logo");
         IUser teamCaptain = (IUser)slashCommand.Data.Options.First(o => o.Name == TEAMCAPTAINOPTIONNAME).Value;
 
         await dBContext.UpdateUserEntry(teamCaptain);
-        Team team = new() { TeamCaptainID = teamCaptain.Id, TeamName = teamName, TeamLogoURL = teamLogo.Url, TeamRoleID = teamRole.Id };
+        Team team = new() { TeamCaptainID = teamCaptain.Id, TeamName = teamName, TeamLogoURL = teamLogoPath, TeamRoleID = teamRole.Id };
         await dBContext.AddAsync(team);
         await dBContext.SaveChangesAsync();
-        await dBContext.DisposeAsync();
 
-        Console.WriteLine($"New team created:\nTeam name: {teamName}\nTeam logo: {teamLogo.Url}\nTeam captain: {teamCaptain.GlobalName ?? teamCaptain.Username}");
+        Console.WriteLine($"New team created:\nTeam name: {teamName}\nTeam logo: {teamLogoPath}\nTeam captain: {teamCaptain.GlobalName ?? teamCaptain.Username}");
+        (EmbedBuilder embedbuilder, FileAttachment teamLogoAttachment) = await team.GetDefaultEmbed();
+        Embed[] embed = [embedbuilder.Build()];
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
         {
             mp.Content = "New team added to the league!";
-            mp.Embeds = new Embed[] { (await team.GetDefaultEmbed()).Build() };
+            mp.Embeds = embed;
+            mp.Attachments = new List<FileAttachment> { teamLogoAttachment };
         });
+
+        await dBContext.DisposeAsync();
     }
 }
