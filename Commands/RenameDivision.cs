@@ -46,10 +46,15 @@ internal class RenameDivision : CommandBase
             return;
         }
         LeagueDBContext dBContext = new();
-        if (await GetSeasonOrDefault(slashCommand, dBContext) is not Season season) return;
+        if (await GetSeasonOrDefault(slashCommand, dBContext) is not Season season)
+        {
+            await dBContext.DisposeAsync();
+            return;
+        }
         if (!await dBContext.Seasons.AnyAsync(s => s.State == Season.SeasonState.Unpublished))
         {
             await slashCommand.RespondAsync("There isn't an unpublished season!", ephemeral: true);
+            await dBContext.DisposeAsync();
             return;
         }
         await slashCommand.DeferAsync(ephemeral: true);
@@ -62,6 +67,7 @@ internal class RenameDivision : CommandBase
             {
                 mp.Content = "That division does not exist!";
             });
+            await dBContext.DisposeAsync();
             return;
         }
         string newDivisionName = ((string)slashCommand.Data.Options.First(o => o.Name == NEWDIVISIONOPTIONNAME)).Trim();
@@ -72,6 +78,7 @@ internal class RenameDivision : CommandBase
             {
                 mp.Content = "That division name already exists!";
             });
+            await dBContext.DisposeAsync();
             return;
         }
 

@@ -51,6 +51,7 @@ internal partial class RemoveTeam : CommandBase
             {
                 mp.Content = "That role is not linked to a team!";
             });
+            await dBContext.DisposeAsync();
             return;
         }
 
@@ -100,11 +101,13 @@ internal partial class RemoveTeam : CommandBase
         if (slashCommand.User.Id != messageComponent.User.Id)
         {
             await messageComponent.RespondAsync("This is not your interaction!", ephemeral: true);
+            await dBContext.DisposeAsync();
             return;
         }
         if (team.Unlinked == true)
         {
             await messageComponent.RespondAsync("Team already unlinked.", ephemeral: true);
+            await dBContext.DisposeAsync();
             return;
         }
 
@@ -113,6 +116,7 @@ internal partial class RemoveTeam : CommandBase
             await messageComponent.RespondAsync("Did not unlink the team.");
             await confirmationMessage.ModifyAsync(mp => { mp.Components = null; mp.Content = confirmationMessage.Content + "\n[Cancelled]"; });
             InteractionCache.Remove(interactionKey);
+            await dBContext.DisposeAsync();
             return;
         }
 

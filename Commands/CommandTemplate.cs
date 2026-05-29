@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -46,12 +47,12 @@ internal class CommandTemplate : CommandBase
 
 
         await dBContext.SaveChangesAsync();
-        await dBContext.DisposeAsync();
 
         //Console.WriteLine($"");
-        await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
+        await slashCommand.ModifyOriginalResponseAsync((mp) =>
         {
             mp.Content = "output";
         });
+        await dBContext.DisposeAsync();
     }
 }

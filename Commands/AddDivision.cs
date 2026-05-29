@@ -43,6 +43,7 @@ internal class AddDivision : CommandBase
         if (!await dBContext.Seasons.AnyAsync(s => s.State == Season.SeasonState.Unpublished))
         {
             await slashCommand.RespondAsync("There isn't an unpublished season!", ephemeral: true);
+            await dBContext.DisposeAsync();
             return;
         }
         await slashCommand.DeferAsync(ephemeral: true);
@@ -55,6 +56,7 @@ internal class AddDivision : CommandBase
             {
                 mp.Content = "That division name already exists!";
             });
+            await dBContext.DisposeAsync();
             return;
         }
 

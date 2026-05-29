@@ -42,6 +42,7 @@ internal class MyMatch : CommandBase
             {
                 mp.Content = "There is no current season.";
             });
+            await dBContext.DisposeAsync();
             return;
         }
         if (season.AllWeeks.FirstOrDefault(w => w.State == Week.WeekState.Current) is not Week week)
@@ -50,6 +51,7 @@ internal class MyMatch : CommandBase
             {
                 mp.Content = "There is no current week.";
             });
+            await dBContext.DisposeAsync();
             return;
         }
         List<Match> Matches = await dBContext.Entry(week).Collection(w => w.Matches).Query().Include(m => m.Games).Include(m => m.Substitutions).ToListAsync();
@@ -59,6 +61,7 @@ internal class MyMatch : CommandBase
             {
                 mp.Content = "You are not in a match this week.";
             });
+            await dBContext.DisposeAsync();
             return;
         }
 

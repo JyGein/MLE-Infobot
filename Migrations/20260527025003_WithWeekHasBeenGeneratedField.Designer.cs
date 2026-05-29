@@ -2,6 +2,7 @@
 using MLE_Infobot;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -9,9 +10,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MLE_Infobot.Migrations
 {
     [DbContext(typeof(LeagueDBContext))]
-    partial class LeagueDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260527025003_WithWeekHasBeenGeneratedField")]
+    partial class WithWeekHasBeenGeneratedField
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.13");
@@ -70,7 +73,7 @@ namespace MLE_Infobot.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<long>("MappingValue")
+                    b.Property<int>("MappingValue")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("WeekId")

@@ -50,6 +50,7 @@ internal class ViewDivision : CommandBase
                 {
                     mp.Content = "That season does not exist!";
                 });
+                await dBContext.DisposeAsync();
                 return;
             }
             season = s;
@@ -63,6 +64,7 @@ internal class ViewDivision : CommandBase
                 {
                     mp.Content = "There is no season to view.";
                 });
+                await dBContext.DisposeAsync();
                 return;
             }
             season = potentialSeasons.First();
@@ -73,7 +75,7 @@ internal class ViewDivision : CommandBase
         Division? division = null;
         if (slashCommand.Data.Options.FirstOrDefault(o => o.Name == DIVISIONNAMEOPTIONNAME) is SocketSlashCommandDataOption divisionNameOption)
         {
-            if (season.Divisions.FirstOrDefault(d => d.DivisionName == (string)divisionNameOption.Value) is Division d)
+            if (season.Divisions.FirstOrDefault(d => d.DivisionName.Equals(((string)divisionNameOption.Value).Trim(), StringComparison.CurrentCultureIgnoreCase)) is Division d)
             {
                 division = d;
             }
@@ -83,6 +85,7 @@ internal class ViewDivision : CommandBase
                 {
                     mp.Content = "That is not a valid division name.";
                 });
+                await dBContext.DisposeAsync();
                 return;
             }
         }

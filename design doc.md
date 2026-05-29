@@ -65,6 +65,9 @@ Throws if team doesn't exist or if there isn't an unpublished season or if divis
 **edit-squad <team-role: discord role> <squad-number: int> <player1: discord user> <player2: discord user> <player3: discord user> [sub1: discord user] [sub2: discord user]**  
 Changes the players on a team's squad in the current unpublished season.
 
+**edit-squad-division <team-role: discord role> <squad-number: int> <new-division: string>**  
+Changes a squad's division in the current unpublished season.
+
 **subsitute <team-role: discord role> <squad-number: int> <player: discord user> <sub: discord user> [week-number: int]**  
 Substitutes the player with the sub for the current season. Defaults to the next week.  
 Throws if the sub or player are not in that squad.
@@ -93,20 +96,20 @@ Renames a division in the current unpublished season
 Throws if there is no currently unpublished season or if the division does not exist.
 
 **remove-division <division-name: string>**
-Removes a division to the current unpublished season and all of it's squads
+Removes a division from the currently unpublished season and all of it's squads
 Throws if there is no currently unpublished season or if the division does not exist.
 
-**swap-matchup <season-number: int> <week-number: int> <team1: discord role> <squad1: int> <team2: discord role> <squad2: int>**  
-Swaps two squad's matchup for that season and week.  
-Throws if season/week/team/squad doesn't exist.
+**swap-matchup <week-number: int> <team1: discord role> <squad1: int> <team2: discord role> <squad2: int> [season-number: int]**  
+Swaps two squad's matchup for that season and week. Defaults to unpublished season, then current season, then throws if neither.  
+Throws if season/week/team/squad doesn't exist.  
 Note: This is technically all you need to manually enter the matches from a randomized season, but can add more commands to make manual input easier.
 
 **change-player-mappings <season-number: int> <week-number: int> <one-to: int> <two-to: int> <three-to: int>**  
 Changes the player mappings for that week. Only works on generated weeks.
 Dangerous; public confirmation message if on a published week.
 
-**swap-home-away <season-number: int> <week-number: int> <team: discord role> <squad: int>**  
-Swaps who is home and who is away for that squad's match for that season and week.  
+**swap-home-away <week-number: int> <team: discord role> <squad: int> [season-number: int]**  
+Swaps who is home and who is away for that squad's match for that season and week. Defaults to unpublished season, then current season, then throws if neither.  
 Throws if season/week/team/squad doesn't exist.
 
 **publish-season [publish-channel: discord channel]**  
@@ -117,14 +120,21 @@ Dangerous; public confirmation message.
 Publishes the next week of the current season. Displays "New week!" message in publish-channel, defaults to channel where message is sent.  
 Semi-Dangerous; private confirmation message.
 
-**generate-week [one-to: int] [two-to: int] [three-to: int]**  
-Generate's the next week's matches. Only works if the next unpublished week of the current season has not been randomized and the previous week has had all of it's matches played.  
+**generate-next-season-week [one-to: int] [two-to: int] [three-to: int]**  
+Generate's the next season week's matches. Only works if the next unpublished week of the current season has not been randomized and the previous week has had all of it's matches played.  
 The one-to/two-to/three-to optional inputs are for manually setting the player mappings, all three must be set to 1 2 or 3 exclusively, will throw if not inputted properly.
+
+**generate-next-playoff-week [one-to: int] [two-to: int] [three-to: int]**  
+Generate's the next playoff week's matches. Will start the playoffs if there are no playoff weeks yet. Requires  
+Same throws as generate-next-season-week. 
 
 **submit-matches <team: discord role> <squad: int>**  
 Gives an interaction prompting you to fill out the number of wins and loses for each member of the squad.  
 Throws if squad doesn't exist.
 
+**finish-season**  
+Sets the current season to finished.
+Throws if there are incomplete matches.
 
 ### Formatting:
 

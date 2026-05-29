@@ -48,6 +48,7 @@ internal class EditTeamName : CommandBase
             {
                 mp.Content = "That role is not linked to a team!";
             });
+            await dBContext.DisposeAsync();
             return;
         }
 

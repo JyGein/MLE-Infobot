@@ -36,6 +36,7 @@ internal class CreateSeason : CommandBase
         if (await dBContext.Seasons.AnyAsync(s => s.State == Season.SeasonState.Unpublished))
         {
             await slashCommand.RespondAsync("There is already an unpublished season!", ephemeral: true);
+            await dBContext.DisposeAsync();
             return;
         }
         await slashCommand.DeferAsync(ephemeral: true);

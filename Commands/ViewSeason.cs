@@ -41,6 +41,7 @@ internal class ViewSeason : CommandBase
         if (isAdmin ? !await dBContext.Seasons.AnyAsync() : !await dBContext.Seasons.AnyAsync(s => s.State != Season.SeasonState.Unpublished))
         {
             await slashCommand.RespondAsync("There are no seasons to view.", ephemeral: true);
+            await dBContext.DisposeAsync();
             return;
         }
         List<Season> Seasons = await dBContext.Seasons
@@ -53,6 +54,7 @@ internal class ViewSeason : CommandBase
             if (Seasons.FirstOrDefault(s => s.SeasonNumber == (long)seasonNumberOption.Value) is not Season s || (s.State == Season.SeasonState.Unpublished && !isAdmin))
             {
                 await slashCommand.RespondAsync("That season does not exist!", ephemeral: true);
+                await dBContext.DisposeAsync();
                 return;
             }
             season = s;
@@ -67,6 +69,7 @@ internal class ViewSeason : CommandBase
             if (season.AllWeeks.FirstOrDefault(w => w.WeekNumber == (long)weekNumberOption.Value) is not Week w)
             {
                 await slashCommand.RespondAsync("That week does not exist!", ephemeral: true);
+                await dBContext.DisposeAsync();
                 return;
             }
             week = w;

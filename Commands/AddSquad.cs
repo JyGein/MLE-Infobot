@@ -52,13 +52,17 @@ internal class AddSquad : CommandBase
             await slashCommand.RespondAsync(Messages.REQUIRESADMIN, ephemeral: true);
             return;
         }
+        await slashCommand.DeferAsync(ephemeral: true);
         LeagueDBContext dBContext = new();
         if (!await dBContext.Seasons.AnyAsync(s => s.State == Season.SeasonState.Unpublished))
         {
-            await slashCommand.RespondAsync("There isn't an unpublished season!", ephemeral: true);
+            await slashCommand.ModifyOriginalResponseAsync((mp) =>
+            {
+                mp.Content = "There isn't an unpublished season!";
+            });
+            await dBContext.DisposeAsync();
             return;
         }
-        await slashCommand.DeferAsync(ephemeral: true);
 
         Season season = await dBContext.Seasons
             .Include(s => s.Divisions)
@@ -72,6 +76,7 @@ internal class AddSquad : CommandBase
             {
                 mp.Content = "That is not a valid Division name!";
             });
+            await dBContext.DisposeAsync();
             return;
         }
 
@@ -82,6 +87,7 @@ internal class AddSquad : CommandBase
             {
                 mp.Content = "That role is not linked to a team!";
             });
+            await dBContext.DisposeAsync();
             return;
         }
         IUser player1 = (IUser)slashCommand.Data.Options.First(o => o.Name == PLAYER1OPTIONNAME).Value;
@@ -142,6 +148,14 @@ internal class AddSquad : CommandBase
                 {
                     warnings += $"{player.GlobalName} is already on {anotherSquad.Team.TeamName} - Squad {anotherSquad.SquadNumber} as a player.\n";
                 }
+            }
+        }
+
+        foreach (Squad divisionSquads in division.Squads)
+        {
+            if (divisionSquads.TeamId == squad.TeamId)
+            {
+                warnings += $"Squad {divisionSquads.SquadNumber} is from the same team as Squad {squad.SquadNumber} in {division.DivisionName} division.";
             }
         }
 

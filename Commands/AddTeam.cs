@@ -55,6 +55,7 @@ internal class AddTeam : CommandBase
             {
                 mp.Content = "That role is already linked to a team!";
             });
+            await dBContext.DisposeAsync();
             return;
         }
         string teamName = (string)slashCommand.Data.Options.First(o => o.Name == TEAMNAMEOPTIONNAME).Value;
@@ -65,6 +66,7 @@ internal class AddTeam : CommandBase
             {
                 mp.Content = "The team-logo must be an image!\nThe team was not created.";
             });
+            await dBContext.DisposeAsync();
             return;
         }
         string teamLogoPath = await Program.SaveImage(teamLogo.Url, teamName + "Logo");

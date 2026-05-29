@@ -48,6 +48,7 @@ internal class EditTeamLogo : CommandBase
             {
                 mp.Content = "That role is not linked to a team!";
             });
+            await dBContext.DisposeAsync();
             return;
         }
 
@@ -58,6 +59,7 @@ internal class EditTeamLogo : CommandBase
             {
                 mp.Content = "The team-logo must be an image!\nThe logo was not changed.";
             });
+            await dBContext.DisposeAsync();
             return;
         }
         string teamLogoPath = await Program.SaveImage(teamLogo.Url, team.TeamName + "Logo");
