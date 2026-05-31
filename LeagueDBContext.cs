@@ -32,10 +32,12 @@ internal sealed class LeagueDBContext : DbContext
 
     public LeagueDBContext()
     {
-        Environment.SpecialFolder folder = Environment.SpecialFolder.LocalApplicationData;
-        string path = Environment.GetFolderPath(folder);
-        path = Path.Join(path, "MLE-Infobot\\league.db");
-        Console.WriteLine($"Database loaded from: {path}");
+        string path = AppContext.BaseDirectory;
+
+        path = Path.Combine(path, "Data");
+        Directory.CreateDirectory(path);
+        path = Path.Combine(path, "league.db");
+        Console.WriteLine($"{DateTime.Now:T}::Database loaded from: {path}");
         DbPath = path;
     }
 
@@ -75,7 +77,7 @@ internal sealed class LeagueDBContext : DbContext
     {
         if (await PlayerNames.FirstOrDefaultAsync(pn => pn.PlayerUserID == playerId) is PlayerName playerName)
         {
-            return playerName.GetPlayerName();
+            return playerName.GetPlayerName().Replace("_", "\\_");
         }
         else return "UNKNOWN";
     }
@@ -100,6 +102,8 @@ internal class Season
     public List<PlayoffWeek> PlayoffWeeks { get; set; } = [];
     public required SeasonState State { get; set; }
 
+    //Known issues:
+    // Outlier squad could have the same team, meaning they're forced to play each other.
     public async Task RandomizeGuaranteedMatches()
     {
         //this should never happen but just in case, since this is dangerous to do on an in-progress season as it clears all season weeks
@@ -116,7 +120,7 @@ internal class Season
             dBContext.Entry(sw).State = EntityState.Deleted;
         }
         season.SeasonWeeks.Clear();
-        int biggestDivisionSize = season.Divisions.Max(d => d.Squads.Count);
+        int biggestDivisionSize = season.Divisions.Count > 0 ? season.Divisions.Max(d => d.Squads.Count) : 0;
         if (biggestDivisionSize <= 1)
         {
             season.SeasonWeeks.Add(new() { IsOnlyPartiallyFilled = true, Season = season, State = Week.WeekState.Unpublished, WeekNumber = 1 });
@@ -145,7 +149,7 @@ internal class Season
             {
                 List<Squad> divisionSquads = division.Squads;
                 if (divisionSquads.Count == 0) continue;
-                if (divisionSquads.All(s => DivisionSquadsFaced(s) is List<Squad> facedSquads && facedSquads.Count >= divisionSquads.Count))
+                if (divisionSquads.All(s => DivisionSquadsFaced(s) is List<Squad> facedSquads && facedSquads.Count >= divisionSquads.Count - 1))
                 {
                     week.IsOnlyPartiallyFilled = true;
                     continue;
@@ -154,7 +158,7 @@ internal class Season
                 while (unmatchedSquads.Count > 1)
                 {
                     Squad squad = unmatchedSquads.Pop();
-                    List<Squad> potentialOpponents = DivisionSquadsFaced(squad)?.Except(unmatchedSquads).ToList() ?? unmatchedSquads;
+                    List<Squad> potentialOpponents = [.. unmatchedSquads.Where(s => !(DivisionSquadsFaced(squad) ?? []).Contains(s))];
                     if (potentialOpponents.FirstOrDefault() is Squad opponent)
                     {
                         week.Matches.Add(new() { HomeSquad = squad, AwaySquad = opponent, Week = week });
@@ -163,21 +167,24 @@ internal class Season
                     }
                     else
                     {
-                        outlierSquads.Add(squad);
+                        //outlierSquads.Add(squad);
+                        week.IsOnlyPartiallyFilled = true;
                     }
                 }
+                if (unmatchedSquads.Count == 1) outlierSquads.Add(unmatchedSquads.Single());
             }
 
-            outlierSquads = [.. outlierSquads.OrderByDescending(s => s.NumByes).ThenBy(s => rnd.Next())];
-            while (outlierSquads.Count > 1)
-            {
-                Squad squad = outlierSquads.Pop();
-                List<Squad> potentialOpponents = [.. (SquadsFaced.TryGetValue(squad, out List<Squad>? squads) ? outlierSquads.OrderBy(s => squads.Count(ss => ss == s)) : outlierSquads.Order()).ThenBy(s => rnd.Next())];
-                Squad opponent = potentialOpponents.Pop();
-                week.Matches.Add(new() { HomeSquad = squad, AwaySquad = opponent, Week = week });
-                outlierSquads.Remove(opponent);
-                AddSquad(squad, opponent);
-            }
+            if (outlierSquads.Count >= 2) week.IsOnlyPartiallyFilled = true;
+            //outlierSquads = [.. outlierSquads.OrderByDescending(s => s.NumByes).ThenBy(s => rnd.Next())];
+            //while (outlierSquads.Count > 1)
+            //{
+            //    Squad squad = outlierSquads.Pop();
+            //    List<Squad> potentialOpponents = [.. (SquadsFaced.TryGetValue(squad, out List<Squad>? squads) ? outlierSquads.OrderBy(s => squads.Count(ss => ss == s)) : outlierSquads.Order()).ThenBy(s => rnd.Next())];
+            //    Squad opponent = potentialOpponents.Pop();
+            //    week.Matches.Add(new() { HomeSquad = squad, AwaySquad = opponent, Week = week });
+            //    outlierSquads.Remove(opponent);
+            //    AddSquad(squad, opponent);
+            //}
             season.SeasonWeeks.Add(week);
         }
         await dBContext.SaveChangesAsync();
@@ -258,7 +265,7 @@ internal class Division
     public int SeasonId { get; set; }
     public required Season Season { get; set; }
 
-    public async Task<List<EmbedBuilder>> GetSquadsEmbeds()
+    public async Task<(List<EmbedBuilder>, List<FileAttachment>)> GetSquadsEmbeds()
     {
         LeagueDBContext dBContext = new();
         Division division = (Division)(await dBContext.FindAsync(GetType(), DivisionId))!;
@@ -271,11 +278,16 @@ internal class Division
         List<EmbedBuilder> embeds = [];
         embeds.Add(new EmbedBuilder()
             .WithTitle($"{DivisionName} Division - Season {division.Season.SeasonNumber}"));
-        foreach (Squad s in division.Squads)
+        List<FileAttachment> teamLogos = [];
+        List<Squad> potentiallySortedSquads = division.Squads;
+        if (await dBContext.Entry(division.Season).Collection(s => s.SeasonWeeks).Query().CountAsync(w => w.State == Week.WeekState.Finished || w.State == Week.WeekState.Current) > 0) potentiallySortedSquads = await Squad.OrderByTiebreakers(potentiallySortedSquads);
+        foreach (Squad s in potentiallySortedSquads)
         {
-            embeds.Add(await s.GetDefaultEmbed());
+            (EmbedBuilder embed, FileAttachment teamLogo) = await s.GetDefaultEmbed();
+            embeds.Add(embed);
+            teamLogos.Add(teamLogo);
         }
-        return embeds;
+        return (embeds, teamLogos);
     }
 }
 
@@ -292,7 +304,7 @@ internal class Squad
     [NotMapped]
     public int MatchWins => Matches.Count(m => m.WinningSquad == this);
     [NotMapped]
-    public int MatchLosses => Matches.Count(m => m.Winner != Match.MatchState.Undecided && m.WinningSquad != this);
+    public int MatchLosses => Matches.Count(m => m.Winner != Match.MatchState.Undecided && m.Winner != Match.MatchState.Tie && m.WinningSquad != this);
     [NotMapped]
     public int MatchTies => Matches.Count(m => m.Winner == Match.MatchState.Tie);
     [NotMapped]
@@ -306,7 +318,7 @@ internal class Squad
     [NotMapped]
     public int NumByes => Season.AllWeeks.Count - Matches.Count;
 
-    public async Task<EmbedBuilder> GetDefaultEmbed(bool withDivision = false)
+    public async Task<(EmbedBuilder, FileAttachment)> GetDefaultEmbed(bool withDivision = false)
     {
         LeagueDBContext dBContext = new();
         Squad squad = (Squad)(await dBContext.FindAsync(GetType(), SquadId))!;
@@ -319,9 +331,25 @@ internal class Squad
         await dBContext.Entry(squad)
             .Reference(s => s.Team)
             .LoadAsync();
-        if (withDivision) await dBContext.Entry(squad)
-                .Reference(s => s.Division)
-                .LoadAsync();
+        await dBContext.Entry(squad)
+            .Reference(s => s.Division)
+            .LoadAsync();
+        await dBContext.Entry(squad.Division)
+            .Reference(d => d.Season)
+            .LoadAsync();
+        bool showRecord = false;
+        if (squad.Season.State != Season.SeasonState.Unpublished)
+        {
+            await dBContext.Entry(squad.Season).Collection(s => s.SeasonWeeks).Query().Include(w => w.Matches).LoadAsync();
+            await dBContext.Entry(squad.Season).Collection(s => s.PlayoffWeeks).Query().Include(w => w.Matches).LoadAsync();
+            foreach (Match m in squad.Season.AllWeeks.SelectMany(w => w.Matches))
+            {
+                await dBContext.Entry(m).Reference(m => m.HomeSquad).LoadAsync();
+                await dBContext.Entry(m).Reference(m => m.AwaySquad).LoadAsync();
+                await dBContext.Entry(m).Collection(m => m.Games).LoadAsync();
+            }
+            showRecord = true;
+        }
         List<EmbedFieldBuilder> fields = [new EmbedFieldBuilder()
             .WithName("Players:")
             .WithValue(string.Join("\n", squad.PlayerIDs.Select(async id => await dBContext.GetPlayerName(id.PlayerID)).Select(t => t.Result)))];
@@ -331,12 +359,13 @@ internal class Squad
             .WithName("Substitutes:")
             .WithValue(string.Join("\n", squad.SubstituteIDs.Select(async id => await dBContext.GetPlayerName(id.PlayerID)).Select(t => t.Result))));
         }
-        FileAttachment teamLogo = new(squad.Team.TeamLogoURL, $"{squad.Team.TeamName}Logo", isThumbnail: true);
-        return new EmbedBuilder()
-            .WithTitle($"{squad.Team.TeamName} - Squad {squad.SquadNumber}" + (withDivision ? $" - {squad.Division.DivisionName} Division" : ""))
+        string record = showRecord ? $"\n{squad.MatchWins}-{squad.MatchLosses}{(squad.MatchTies > 0 ? $"-{squad.MatchTies}" : "")}" : "";
+        FileAttachment teamLogo = new(squad.Team.TeamLogoURL, isThumbnail: true);
+        return (new EmbedBuilder()
+            .WithTitle($"{squad.Team.TeamName} - Squad {squad.SquadNumber}" + (withDivision ? $" - {squad.Division.DivisionName} Division" : "") + record)
             .WithColor((await Program.Guild.GetRoleAsync(squad.Team.TeamRoleID)).Color)
-            .WithThumbnailUrl(teamLogo.GetAttachmentUrl())
-            .WithFields(fields);
+            .WithThumbnailUrl($"attachment://{teamLogo.FileName}")
+            .WithFields(fields), teamLogo);
     }
 
     public static async Task<List<Squad>> OrderByTiebreakers(List<Squad> yourContextSquadsToOrder)
@@ -356,8 +385,9 @@ internal class Squad
                 divisionsLoaded.Add(squad.DivisionId);
                 if (!seasonsLoaded.Contains(division.SeasonId))
                 {
-                    List<Week> weeks = [.. dBContext.Entry(division).Reference(d => d.Season).Query().Include(s => s.SeasonWeeks).Include(s => s.PlayoffWeeks).SelectMany(s => s.AllWeeks)];
+                    List<Week> weeks = [.. (await dBContext.Entry(division).Reference(d => d.Season).Query().Include(s => s.SeasonWeeks).Include(s => s.PlayoffWeeks).ToListAsync()).SelectMany(s => s.AllWeeks)];
                     foreach (Week week in weeks) await dBContext.Entry(week).Collection(w => w.Matches).Query().Include(m => m.Games).Include(m => m.HomeSquad).Include(m => m.AwaySquad).LoadAsync();
+                    foreach (Squad s in weeks.SelectMany(w => w.Matches).SelectMany(m => m.Squads.Where(s => !squadsToOrder.Contains(s)))) await dBContext.Entry(s).Reference(s => s.Division).Query().Include(d => d.Season).LoadAsync();
                     seasonsLoaded.Add(division.SeasonId);
                 }
             }
@@ -365,7 +395,7 @@ internal class Squad
         //tiebreaker 1 2 and 3; match wins, opp win%, game wins
         static float GetOpponentWinPer(Squad squad) 
             => squad.Matches.Select(m => m.HomeSquad == squad ? m.AwaySquad : m.HomeSquad).Select(s => s.MatchWins / (float)s.MatchLosses).Average();
-        squadsToOrder = [.. squadsToOrder.OrderByDescending(s => s.MatchWins).ThenByDescending(GetOpponentWinPer).ThenByDescending(s => s.GameWins)];
+        squadsToOrder = [.. squadsToOrder.OrderByDescending(s => s.MatchWins).ThenByDescending(s => s.MatchTies).ThenByDescending(GetOpponentWinPer).ThenByDescending(s => s.GameWins)];
         Squad? previousSquad = null;
         foreach (Squad squad in squadsToOrder)
         {
@@ -376,7 +406,7 @@ internal class Squad
             else
             {
                 KeyValuePair<int, List<Squad>> previousGroup = rankedSquads.First(kv => kv.Value.Contains(previousSquad));
-                if (previousSquad.MatchWins == squad.MatchWins && GetOpponentWinPer(previousSquad) == GetOpponentWinPer(squad) && previousSquad.GameWins == squad.GameWins)
+                if (previousSquad.MatchWins == squad.MatchWins && previousSquad.MatchTies == squad.MatchTies && GetOpponentWinPer(previousSquad) == GetOpponentWinPer(squad) && previousSquad.GameWins == squad.GameWins)
                 {
                     rankedSquads[previousGroup.Key].Add(squad);
                 }
@@ -548,11 +578,11 @@ internal class Week
                 .Reference(s => s.Team)
                 .LoadAsync();
             fields.Add(new EmbedFieldBuilder()
-                .WithName($"{match.HomeSquad.Team.TeamName} - Squad {match.HomeSquad.SquadNumber} {(match.Winner == Match.MatchState.Undecided ? "vs" : $"{match.HomeGameWins}-{match.AwayGameWins}")} {match.AwaySquad.Team.TeamName} - Squad {match.AwaySquad.SquadNumber}")
-                .WithValue(match.Games.Count > 0 ? string.Join("\n", match.Games.Select(g => $"{dBContext.GetPlayerName(g.HomePlayerIDWithSub)} {(match.Winner == Match.MatchState.Undecided ? "vs" : $"{g.HomePlayerWins}-{g.AwayPlayerWins}")} {dBContext.GetPlayerName(g.AwayPlayerIDWithSub)}")) : "Player matchups will be displayed when the week is published."));
+                .WithName($"{match.HomeSquad.Team.TeamName} - Squad {match.HomeSquad.SquadNumber} {(match.Winner == Match.MatchState.Undecided ? "vs" : $" {match.HomeGameWins}-{match.AwayGameWins} ")} {match.AwaySquad.Team.TeamName} - Squad {match.AwaySquad.SquadNumber}")
+                .WithValue(match.Games.Count > 0 ? string.Join("\n", match.Games.Select(async g => $"{await dBContext.GetPlayerName(g.HomePlayerIDWithSub)} {(match.Winner == Match.MatchState.Undecided ? "vs" : $" {g.HomePlayerWins}-{g.AwayPlayerWins} ")} {await dBContext.GetPlayerName(g.AwayPlayerIDWithSub)}").Select(t => t.Result)) : "Player matchups will be displayed when the week is published."));
         }
         return new EmbedBuilder()
-            .WithTitle($"Season {week.Season.SeasonNumber} - Week {week.WeekNumber}")
+            .WithTitle($"Week {week.WeekNumber}\nSeason {week.Season.SeasonNumber}")
             .WithFields(fields);
     }
 
@@ -599,6 +629,15 @@ internal class SeasonWeek : Week
 internal class PlayoffWeek : Week
 {
     public int PlayoffWeekId { get; set; }
+    public override async Task<EmbedBuilder> GetEmbed()
+    {
+        EmbedBuilder output = await base.GetEmbed();
+        LeagueDBContext dBContext = new();
+        PlayoffWeek week = (PlayoffWeek)(await dBContext.FindAsync(typeof(Week), WeekId))!;
+        await dBContext.Entry(week).Reference(w => w.Season).Query().Include(s => s.SeasonWeeks).LoadAsync();
+        output.WithTitle($"Playoff Week {week.WeekNumber - week.Season.SeasonWeeks.Count}\nSeason {week.Season.SeasonNumber} - Week {week.WeekNumber}");
+        return output;
+    }
 }
 
 /// <summary>
@@ -667,8 +706,8 @@ internal class Match
         return new EmbedBuilder()
             .WithTitle($"Season {match.Week.Season.SeasonNumber} - Week {match.Week.WeekNumber}")
             .WithFields(new EmbedFieldBuilder()
-                .WithName($"{match.HomeSquad.Team.TeamName} - Squad {match.HomeSquad.SquadNumber} {(match.Winner == Match.MatchState.Undecided ? "vs" : $"{match.HomeGameWins}-{match.AwayGameWins}")} {match.AwaySquad.Team.TeamName} - Squad {match.AwaySquad.SquadNumber}")
-                .WithValue(match.Games.Count > 0 ? string.Join("\n", match.Games.Select(g => $"{dBContext.GetPlayerName(g.HomePlayerIDWithSub)} {(match.Winner == Match.MatchState.Undecided ? "vs" : $"{g.HomePlayerWins}-{g.AwayPlayerWins}")} {dBContext.GetPlayerName(g.AwayPlayerIDWithSub)}")) : "Player matchups will be displayed when the week is published."));
+                .WithName($"{match.HomeSquad.Team.TeamName} - Squad {match.HomeSquad.SquadNumber} {(match.Winner == Match.MatchState.Undecided ? "vs" : $" {match.HomeGameWins}-{match.AwayGameWins} ")} {match.AwaySquad.Team.TeamName} - Squad {match.AwaySquad.SquadNumber}")
+                .WithValue(match.Games.Count > 0 ? string.Join("\n", match.Games.Select(async g => $"{await dBContext.GetPlayerName(g.HomePlayerIDWithSub)} {(match.Winner == Match.MatchState.Undecided ? "vs" : $" {g.HomePlayerWins}-{g.AwayPlayerWins} ")} {await dBContext.GetPlayerName(g.AwayPlayerIDWithSub)}").Select(t => t.Result)) : "Player matchups will be displayed when the week is published."));
     }
 }
 
@@ -697,7 +736,7 @@ internal class Game
         DoubleLoss
     }
     public int GameId { get; set; }
-    public GameState State = GameState.Undecided;
+    public GameState State { get; set; } = GameState.Undecided;
     public int MatchId { get; set; }
     public required Match Match { get; set; }
     public required ulong HomePlayerID { get; set; }
@@ -720,7 +759,7 @@ internal class PlayerName
         if (Program.Guild.GetUser(PlayerUserID) is SocketGuildUser user)
         {
             PlayerUsername = user.Username;
-            return user.DisplayName;
+            return user.Nickname ?? user.GlobalName ?? user.Username;
         }
         return PlayerUsername;
     }

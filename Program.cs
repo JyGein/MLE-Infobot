@@ -152,9 +152,10 @@ class Program
         string? extension = Path.GetExtension(uri.GetLeftPart(UriPartial.Path));
         byte[] imageBytes = await HttpClient.GetByteArrayAsync(uri);
 
-        Environment.SpecialFolder folder = Environment.SpecialFolder.LocalApplicationData;
-        string path = Environment.GetFolderPath(folder);
-        path = Path.Join(path, $"MLE-Infobot\\{fileName}{extension}");
+        string path = AppContext.BaseDirectory;
+        path = Path.Combine(path, $"Data");
+        Directory.CreateDirectory(path);
+        path = Path.Combine(path, $"{fileName}{extension}");
 
         await File.WriteAllBytesAsync(path, imageBytes);
         return path;

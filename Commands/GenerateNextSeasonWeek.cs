@@ -73,6 +73,21 @@ internal class GenerateNextSeasonWeek : CommandBase
                 return;
             }
             week = new SeasonWeek() { Season = season, State = Week.WeekState.Unpublished, IsOnlyPartiallyFilled = true, WeekNumber = (await dBContext.Entry(season).Collection(s => s.SeasonWeeks).Query().OrderByDescending(w => w.WeekNumber).FirstAsync()).WeekNumber + 1 };
+            await dBContext.Entry(season).Collection(s => s.SeasonWeeks).LoadAsync();
+            season.SeasonWeeks.Add(week);
+        }
+
+        if (await dBContext.Entry(season).Collection(s => s.SeasonWeeks).Query().FirstOrDefaultAsync(w => w.WeekNumber == week.WeekNumber - 1) is Week previousWeek)
+        {
+            if (await dBContext.Entry(previousWeek).Collection(w => w.Matches).Query().AnyAsync(m => m.Winner == Match.MatchState.Undecided))
+            {
+                await slashCommand.ModifyOriginalResponseAsync((mp) =>
+                {
+                    mp.Content = "All matches in the previous week must be decided.";
+                });
+                await dBContext.DisposeAsync();
+                return;
+            }
         }
 
         if (slashCommand.Data.Options.FirstOrDefault(op => op.Name == ONETOOPTIONNAME) is SocketSlashCommandDataOption oneToOptionData)
@@ -112,7 +127,7 @@ internal class GenerateNextSeasonWeek : CommandBase
             }
             playerMappingVals.Add((twoTo, week));
             testCase.Remove(twoTo);
-            if (slashCommand.Data.Options.FirstOrDefault(op => op.Name == TWOTOOPTIONNAME) is not SocketSlashCommandDataOption threeToOptionData)
+            if (slashCommand.Data.Options.FirstOrDefault(op => op.Name == THREETOOPTIONNAME) is not SocketSlashCommandDataOption threeToOptionData)
             {
                 await slashCommand.ModifyOriginalResponseAsync((mp) =>
                 {
@@ -122,11 +137,11 @@ internal class GenerateNextSeasonWeek : CommandBase
                 return;
             }
             long threeTo = (long)threeToOptionData.Value;
-            if (!testCase.Contains(twoTo))
+            if (!testCase.Contains(threeTo))
             {
                 await slashCommand.ModifyOriginalResponseAsync((mp) =>
                 {
-                    mp.Content = "Must input one each of 1 2 and 3.";
+                    mp.Content = $"Must input one each of 1 2 and 3.";
                 });
                 await dBContext.DisposeAsync();
                 return;
@@ -143,7 +158,7 @@ internal class GenerateNextSeasonWeek : CommandBase
         await dBContext.Entry(week).Collection(w => w.Matches).Query().Include(m => m.HomeSquad).Include(m => m.AwaySquad).LoadAsync();
         if (week.IsOnlyPartiallyFilled)
         {
-            List<Squad> pairableSquads = [.. dBContext.Entry(season).Collection(s => s.Divisions).Query().Include(d => d.Squads).ThenInclude(s => s.Team).SelectMany(d => d.Squads).Where(s => !week.Matches.Any(m => m.HomeSquadId == s.SquadId || m.AwaySquadId == s.SquadId))];
+            List<Squad> pairableSquads = [.. (await dBContext.Entry(season).Collection(s => s.Divisions).Query().Include(d => d.Squads).ThenInclude(s => s.Team).ToListAsync()).SelectMany(d => d.Squads).Where(s => !week.Matches.Any(m => m.HomeSquadId == s.SquadId || m.AwaySquadId == s.SquadId))];
             List<Squad> rankedSquads = [..(await Squad.OrderByTiebreakers(pairableSquads)).OrderByDescending(s => s.NumByes)];
             while (rankedSquads.Count > 1)
             {
@@ -157,23 +172,24 @@ internal class GenerateNextSeasonWeek : CommandBase
 
         foreach (Match match in week.Matches)
         {
-            match.Squads.ForEach(async s => await dBContext.Entry(s).Reference(s => s.PlayerIDs).LoadAsync());
+            match.Squads.ForEach(async s => await dBContext.Entry(s).Collection(s => s.PlayerIDs).LoadAsync());
+            await dBContext.Entry(match).Collection(m => m.Games).LoadAsync();
             match.Games.ForEach(g => dBContext.Entry(g).State = EntityState.Deleted);
             match.Games.Clear();
             foreach (int i in week.Players123Mappings)
             {
-                match.Games.Add(new() { Match = match, HomePlayerID = match.HomeSquad.PlayerIDs[match.Games.Count], AwayPlayerID = match.AwaySquad.PlayerIDs[i] });
+                match.Games.Add(new() { Match = match, HomePlayerID = match.HomeSquad.PlayerIDs[match.Games.Count], AwayPlayerID = match.AwaySquad.PlayerIDs[i-1] });
             }
         }
         week.HasBeenGenerated = true;
 
         await dBContext.SaveChangesAsync();
 
-        Console.WriteLine($"Generated season {season.SeasonNumber} week {week.WeekNumber}.");
-        Embed[] embeds = [(await week.GetDefaultEmbed()).Build()];
+        Console.WriteLine($"Generated season {season.SeasonNumber} Week {week.WeekNumber}.");
+        Embed[] embeds = [(await week.GetEmbed()).Build()];
         await slashCommand.ModifyOriginalResponseAsync((mp) =>
         {
-            mp.Content = $"Generated season {season.SeasonNumber} week {week.WeekNumber}.";
+            mp.Content = $"Generated season {season.SeasonNumber} Week {week.WeekNumber}.";
             mp.Embeds = embeds;
         });
         await dBContext.DisposeAsync();

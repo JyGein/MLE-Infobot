@@ -172,12 +172,12 @@ internal class SwapMatchup : CommandBase
         {
             foreach (Match match in new List<Match> { match1, match2 })
             {
-                match.Squads.ForEach(async s => await dBContext.Entry(s).Reference(s => s.PlayerIDs).LoadAsync());
+                match.Squads.ForEach(async s => await dBContext.Entry(s).Collection(s => s.PlayerIDs).LoadAsync());
                 match.Games.ForEach(g => dBContext.Entry(g).State = EntityState.Deleted);
                 match.Games.Clear();
                 foreach (int i in week.Players123Mappings)
                 {
-                    match.Games.Add(new() { Match = match, HomePlayerID = match.HomeSquad.PlayerIDs[match.Games.Count], AwayPlayerID = match.AwaySquad.PlayerIDs[i] });
+                    match.Games.Add(new() { Match = match, HomePlayerID = match.HomeSquad.PlayerIDs[match.Games.Count], AwayPlayerID = match.AwaySquad.PlayerIDs[i-1] });
                 }
             }
         }

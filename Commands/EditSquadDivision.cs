@@ -92,11 +92,14 @@ internal class EditSquadDivision : CommandBase
         await dBContext.SaveChangesAsync();
 
         Console.WriteLine($"Squad number {squadNumber} on team {team.TeamName} change to division {division.DivisionName}.");
-        Embed[] embed = [(await squad.GetDefaultEmbed(true)).Build()];
+        (EmbedBuilder embedBuilder, FileAttachment teamLogo) = await squad.GetDefaultEmbed(true);
+        Embed[] embed = [embedBuilder.Build()];
+        List<FileAttachment> teamLogos = [teamLogo];
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
         {
             mp.Content = $"Squad number {squadNumber} on team {team.TeamName} change to division {division.DivisionName}.";
             mp.Embeds = embed;
+            mp.Attachments = teamLogos;
         });
 
         await dBContext.DisposeAsync();

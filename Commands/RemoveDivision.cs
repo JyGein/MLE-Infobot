@@ -26,7 +26,7 @@ internal class RemoveDivision : CommandBase
     {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
-            .WithDescription($"Removes a division and it's squads from the unpublished season. {Messages.REQUIRESADMIN}")
+            .WithDescription($"Removes an unpublished division and it's squads. {Messages.REQUIRESADMIN}")
             .AddOption(DIVISIONNAMEOPTIONNAME, ApplicationCommandOptionType.String, "The name of the division to remove.", isRequired: true)
             .Build());
     }

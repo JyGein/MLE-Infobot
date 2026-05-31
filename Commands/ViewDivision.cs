@@ -90,9 +90,12 @@ internal class ViewDivision : CommandBase
             }
         }
         Embed[] embeds = [];
+        List<FileAttachment> teamLogos = [];
         if (division != null)
         {
-            embeds = [.. embeds.Concat((await division.GetSquadsEmbeds()).Select(eb => eb.Build()))];
+            (List<EmbedBuilder> divisionEmbeds, List<FileAttachment> divisionTeamLogos) = await division.GetSquadsEmbeds();
+            embeds = [.. embeds.Concat(divisionEmbeds.Select(eb => eb.Build()))];
+            teamLogos = [.. teamLogos.Concat(divisionTeamLogos)];
         }
         else
         {
@@ -103,6 +106,7 @@ internal class ViewDivision : CommandBase
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
         {
             mp.Embeds = embeds;
+            if (teamLogos.Count > 0) mp.Attachments = teamLogos;
         });
 
         await dBContext.DisposeAsync();

@@ -39,6 +39,15 @@ internal abstract partial class CommandBase
     [GeneratedRegex("\\w+:(\\d+):(\\d+)")]
     internal static partial Regex ViewSeasonInteractionIDPattern();
 
+    [GeneratedRegex("\\w+:(\\d+)")]
+    internal static partial Regex SubmitMatchButtonIDPattern();
+
+    [GeneratedRegex("\\w+:(\\d+)")]
+    internal static partial Regex SubmitMatchModalIDPattern();
+
+    [GeneratedRegex("(\\d+):(\\d+)")]
+    internal static partial Regex SubmitMatchModalOptionIDPattern();
+
     internal class Messages
     {
         internal const string REQUIRESADMIN = "Requires league administrator privileges.";

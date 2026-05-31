@@ -36,11 +36,15 @@ internal class ViewSeason : CommandBase
     internal async Task CommandExecuted(SocketSlashCommand slashCommand)
     {
         if (slashCommand.Data.Name != COMMANDNAME) return;
+        await slashCommand.DeferAsync(ephemeral: true);
         LeagueDBContext dBContext = new();
         bool isAdmin = IsAdmin(slashCommand);
         if (isAdmin ? !await dBContext.Seasons.AnyAsync() : !await dBContext.Seasons.AnyAsync(s => s.State != Season.SeasonState.Unpublished))
         {
-            await slashCommand.RespondAsync("There are no seasons to view.", ephemeral: true);
+            await slashCommand.ModifyOriginalResponseAsync((mp) =>
+            {
+                mp.Content = "There are no seasons to view.";
+            });
             await dBContext.DisposeAsync();
             return;
         }
@@ -53,7 +57,10 @@ internal class ViewSeason : CommandBase
         {
             if (Seasons.FirstOrDefault(s => s.SeasonNumber == (long)seasonNumberOption.Value) is not Season s || (s.State == Season.SeasonState.Unpublished && !isAdmin))
             {
-                await slashCommand.RespondAsync("That season does not exist!", ephemeral: true);
+                await slashCommand.ModifyOriginalResponseAsync((mp) =>
+                {
+                    mp.Content = "That season does not exist!";
+                });
                 await dBContext.DisposeAsync();
                 return;
             }
@@ -68,7 +75,10 @@ internal class ViewSeason : CommandBase
         {
             if (season.AllWeeks.FirstOrDefault(w => w.WeekNumber == (long)weekNumberOption.Value) is not Week w)
             {
-                await slashCommand.RespondAsync("That week does not exist!", ephemeral: true);
+                await slashCommand.ModifyOriginalResponseAsync((mp) =>
+                {
+                    mp.Content = "That week does not exist!";
+                });
                 await dBContext.DisposeAsync();
                 return;
             }
@@ -78,14 +88,13 @@ internal class ViewSeason : CommandBase
         {
             week = await season.GetCurrentOrFirstWeek();
         }
-        await slashCommand.DeferAsync(ephemeral: true);
 
-        await dBContext.DisposeAsync();
 
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
         {
             await ViewSeasonPage(mp, week, isAdmin);
         });
+        await dBContext.DisposeAsync();
     }
 
     internal async Task ButtonClicked(SocketMessageComponent messageComponent)
@@ -93,7 +102,7 @@ internal class ViewSeason : CommandBase
         if (!messageComponent.Data.CustomId.Contains(COMMANDNAME)) return; //interaction shouldn't have been for me
         System.Text.RegularExpressions.Match m = ViewSeasonInteractionIDPattern().Match(messageComponent.Data.CustomId);
         if (!m.Success) return; //interaction couldn't be parsed
-
+        await messageComponent.DeferAsync();
         LeagueDBContext dBContext = new();
         
         if (!long.TryParse(m.Groups[1].Value, out long seasonNumber)) return; //regex somehow captured a digit that couldn't be parsed to a long
@@ -103,12 +112,11 @@ internal class ViewSeason : CommandBase
         if (!long.TryParse(m.Groups[2].Value, out long weekNumber)) return; //regex somehow captured a digit that couldn't be parsed to a long
         if (s.AllWeeks.FirstOrDefault(w => w.WeekNumber == weekNumber) is not Week w) return; //the interaction had a week number that isn't there
 
-        await dBContext.DisposeAsync();
-        
-        await messageComponent.Message.ModifyAsync(async (mp) =>
+        await messageComponent.ModifyOriginalResponseAsync(async (mp) =>
         {
             await ViewSeasonPage(mp, w, isAdmin);
         });
+        await dBContext.DisposeAsync();
     }
 
     /// <summary>

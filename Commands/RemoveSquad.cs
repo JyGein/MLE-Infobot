@@ -78,15 +78,6 @@ internal class RemoveSquad : CommandBase
         }
 
         await DeleteSquad(squad);
-        if ((await dBContext.Entry(season).Collection(s => s.Divisions).Query().Include(d => d.Squads).ToListAsync()).SelectMany(d => d.Squads).Where(s => s.TeamId == team.TeamId && s.SquadId != squad.SquadId).OrderBy(s => s.SquadNumber).ToList() is List<Squad> otherSquads && otherSquads.Count > 0)
-        {
-            otherSquads.ForEach(s => Console.WriteLine($"squad: {s.SquadNumber}"));
-            for (int i = 1; i <= otherSquads.Count; i++)
-            {
-                otherSquads[i - 1].SquadNumber = i;
-            }
-        }
-        dBContext.Entry(squad).State = EntityState.Deleted;
 
         await dBContext.SaveChangesAsync();
 
@@ -109,7 +100,7 @@ internal class RemoveSquad : CommandBase
         Season season = (await dBContext.Entry(squad).Reference(s => s.Division).Query().Include(d => d.Season).SingleAsync()).Season;
         if ((await dBContext.Entry(season).Collection(s => s.Divisions).Query().Include(d => d.Squads).ToListAsync()).SelectMany(d => d.Squads).Where(s => s.TeamId == squad.TeamId && s.SquadId != squad.SquadId).OrderBy(s => s.SquadNumber).ToList() is List<Squad> otherSquads && otherSquads.Count > 0)
         {
-            otherSquads.ForEach(s => Console.WriteLine($"squad: {s.SquadNumber}"));
+            //otherSquads.ForEach(s => Console.WriteLine($"squad: {s.SquadNumber}"));
             for (int i = 1; i <= otherSquads.Count; i++)
             {
                 otherSquads[i - 1].SquadNumber = i;

@@ -167,7 +167,9 @@ internal class AddSquad : CommandBase
         await season.RandomizeGuaranteedMatches();
 
         Console.WriteLine($"Squad number {squadNumber} created with {player1.Id}, {player2.Id}, and {player3.Id} as players and {string.Join(", ", subs.Select(s => s.Id.ToString()))} as sub(s).");
-        Embed[] embeds = [(await squad.GetDefaultEmbed()).Build()];
+        (EmbedBuilder embedBuilder, FileAttachment teamLogo) = await squad.GetDefaultEmbed();
+        Embed[] embeds = [embedBuilder.Build()];
+        List<FileAttachment> fileAttachments = [teamLogo];
         if (warnings != "")
         {
             warnings = warnings.Trim();
@@ -185,6 +187,7 @@ internal class AddSquad : CommandBase
         {
             mp.Content = $"Squad number {squadNumber} created!";
             mp.Embeds = embeds;
+            mp.Attachments = fileAttachments;
         });
     }
 }
