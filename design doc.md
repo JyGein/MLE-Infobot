@@ -153,3 +153,8 @@ Semi-Dangerous; Shows a private message asking for confirmation.
 Admin: when the command might need admin perms based on arguements.  
 Notes: extraneous notes about development
 "-" in front of the command name means it's been implemented
+
+
+**dev notes**  
+dotnet publish -r linux-x64 -c Release  
+^ to create the build for the server
