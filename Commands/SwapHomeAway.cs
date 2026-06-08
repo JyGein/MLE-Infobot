@@ -149,7 +149,7 @@ internal class SwapHomeAway : CommandBase
         await dBContext.SaveChangesAsync();
 
         Console.WriteLine($"Swapped home and away for {team.TeamName} squad {squad.SquadNumber}'s match in season {season.SeasonNumber} Week {week.WeekNumber}.");
-        Embed[] embeds = [(await week.GetDefaultEmbed()).Build()];
+        Embed[] embeds = [.. (await week.GetEmbed()).Select(eb => eb.Build())];
         await slashCommand.ModifyOriginalResponseAsync((mp) =>
         {
             mp.Content = $"Swapped home and away for {team.TeamName} squad {squad.SquadNumber}'s match in season {season.SeasonNumber} Week {week.WeekNumber}.";

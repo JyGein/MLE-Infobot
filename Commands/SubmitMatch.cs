@@ -128,7 +128,7 @@ internal class SubmitMatch : CommandBase
             PlayerName playerName = await dBContext.PlayerNames.FirstAsync(pn => pn.PlayerUserID == (isHomeSquad ? game.HomePlayerIDWithSub : game.AwayPlayerIDWithSub));
             List<SelectMenuOptionBuilder> menuOptions = GetMatchResultMenuOptions();
             if (week is PlayoffWeek) menuOptions.Remove(menuOptions.Last()); //removes the double loss if it's a playoff week as that causes ties.
-            modal.AddSelectMenu($"Enter {playerName.GetPlayerName()}'s Game Score",
+            modal.AddSelectMenu($"Enter {string.Join("", playerName.GetPlayerName().Take(25))}'s Game Score",
                 $"{COMMANDNAME}:{count}",
                 menuOptions,
                 "The game score.");

@@ -9,13 +9,15 @@ using System.Threading.Tasks;
 
 namespace MLE_Infobot.Commands;
 
-internal class EditSquadDivision : CommandBase
+/// <summary>
+/// just for copy pasting to make more comamnds
+/// </summary>
+internal class SquadMatches : CommandBase
 {
-    const string COMMANDNAME = "edit-squad-division";
+    const string COMMANDNAME = "squad-matches";
 
     const string TEAMROLEOPTIONNAME = "team-role";
     const string SQUADNUMBEROPTIONNAME = "squad-number";
-    const string DIVISIONNAMEOPTIONNAME = "division-name";
 
     public override async Task SubscribeCommand(DiscordSocketClient client)
     {
@@ -25,41 +27,49 @@ internal class EditSquadDivision : CommandBase
     {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
-            .WithDescription($"Edit a squad's division. {Messages.REQUIRESADMIN}")
+            .WithDescription($"Displays all the matches for a squad this season.")
             .AddOption(TEAMROLEOPTIONNAME, ApplicationCommandOptionType.Role, "The discord role of the squad's team.", isRequired: true)
             .AddOption(SQUADNUMBEROPTIONNAME, ApplicationCommandOptionType.Integer, "The number of the squad.", isRequired: true)
-            .AddOption(DIVISIONNAMEOPTIONNAME, ApplicationCommandOptionType.String, "The new division name of the squad.", isRequired: true)
             .Build());
     }
 
     internal async Task CommandExecuted(SocketSlashCommand slashCommand)
     {
         if (slashCommand.Data.Name != COMMANDNAME) return;
-        if (!IsAdmin(slashCommand))
-        {
-            await slashCommand.RespondAsync("You must be an admin to run this command!", ephemeral: true);
-            return;
-        }
+        bool isAdmin = IsAdmin(slashCommand);
         await slashCommand.DeferAsync(ephemeral: true);
 
         LeagueDBContext dBContext = new();
 
-        if (await dBContext.Seasons.FirstOrDefaultAsync(s => s.State == Season.SeasonState.Unpublished) is not Season season)
+        if (await dBContext.Seasons.FirstOrDefaultAsync(s => s.State == Season.SeasonState.Started) is not Season season)
         {
-            await slashCommand.ModifyOriginalResponseAsync((mp) =>
+            if (!isAdmin)
             {
-                mp.Content = "There is not an unpublished season.";
-            });
-            await dBContext.DisposeAsync();
-            return;
+                await slashCommand.ModifyOriginalResponseAsync((mp) =>
+                {
+                    mp.Content = $"There is no current season!";
+                });
+                await dBContext.DisposeAsync();
+                return;
+            }
+            if (await dBContext.Seasons.FirstOrDefaultAsync(s => s.State == Season.SeasonState.Unpublished) is not Season unpublishedSeason)
+            {
+                await slashCommand.ModifyOriginalResponseAsync((mp) =>
+                {
+                    mp.Content = $"There is no current or unpublished season!";
+                });
+                await dBContext.DisposeAsync();
+                return;
+            }
+            season = unpublishedSeason;
         }
 
         IRole teamRole = (IRole)slashCommand.Data.Options.First(o => o.Name == TEAMROLEOPTIONNAME).Value;
-        if (dBContext.Teams.FirstOrDefault(team => team.TeamRoleID == teamRole.Id) is not Team team)
+        if (await dBContext.Teams.FirstOrDefaultAsync(t => t.TeamRoleID == teamRole.Id) is not Team team)
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
-                mp.Content = "That role is not linked to a team!";
+                mp.Content = "That role is not linked to a team.";
             });
             await dBContext.DisposeAsync();
             return;
@@ -76,34 +86,15 @@ internal class EditSquadDivision : CommandBase
             return;
         }
 
-        string newDivisionName = ((string)slashCommand.Data.Options.First(o => o.Name == DIVISIONNAMEOPTIONNAME).Value).Trim();
-        if ((await dBContext.Entry(season).Collection(s => s.Divisions).Query().ToListAsync()).FirstOrDefault(d => d.DivisionName.Equals(newDivisionName, StringComparison.CurrentCultureIgnoreCase)) is not Division division)
-        {
-            await slashCommand.ModifyOriginalResponseAsync((mp) =>
-            {
-                mp.Content = "That is not a valid division name";
-            });
-            await dBContext.DisposeAsync();
-            return;
-        }
-
-        squad.Division = division;
-
-        await dBContext.SaveChangesAsync();
-
-        //await season.RandomizeGuaranteedMatches();
-
-        Console.WriteLine($"Squad number {squadNumber} on team {team.TeamName} change to division {division.DivisionName}.");
-        (EmbedBuilder embedBuilder, FileAttachment teamLogo) = await squad.GetDefaultEmbed(true);
-        Embed[] embed = [embedBuilder.Build()];
+        //Console.WriteLine($"");
+        (List<EmbedBuilder> listEmbeds, FileAttachment teamLogo) = await squad.GetWholeSeasonEmbed();
+        Embed[] embeds = [.. listEmbeds.Select(eb => eb.Build())];
         List<FileAttachment> teamLogos = [teamLogo];
-        await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
+        await slashCommand.ModifyOriginalResponseAsync((mp) =>
         {
-            mp.Content = $"Squad number {squadNumber} on team {team.TeamName} change to division {division.DivisionName}.";
-            mp.Embeds = embed;
+            mp.Embeds = embeds;
             mp.Attachments = teamLogos;
         });
-
         await dBContext.DisposeAsync();
     }
 }

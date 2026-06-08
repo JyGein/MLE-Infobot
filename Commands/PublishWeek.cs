@@ -93,7 +93,7 @@ internal class PublishWeek : CommandBase
         await dBContext.SaveChangesAsync();
 
         Console.WriteLine($"Published week {week.WeekNumber} in season {season.SeasonNumber}.");
-        Embed[] embeds = [(await week.GetEmbed()).Build()];
+        Embed[] embeds = [.. (await week.GetEmbed()).Select(eb => eb.Build())];
         await messageChannel.SendMessageAsync(text: $"Season {season.SeasonNumber} Week {week.WeekNumber} has begun!", embeds: embeds);
         await slashCommand.ModifyOriginalResponseAsync((mp) =>
         {

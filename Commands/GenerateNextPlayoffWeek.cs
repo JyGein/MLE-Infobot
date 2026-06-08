@@ -227,7 +227,7 @@ internal class GenerateNextPlayoffWeek : CommandBase
 
         string message = $"Generated season {season.SeasonNumber} Week {newWeek.WeekNumber}.";
         Console.WriteLine(message);
-        Embed[] embeds = [(await newWeek.GetEmbed()).Build()];
+        Embed[] embeds = [.. (await newWeek.GetEmbed()).Select(eb => eb.Build())];
         await slashCommand.ModifyOriginalResponseAsync((mp) =>
         {
             mp.Content = message;

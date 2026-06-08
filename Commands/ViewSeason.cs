@@ -125,7 +125,7 @@ internal class ViewSeason : CommandBase
     /// <param name="mp"></param>
     /// <param name="w"></param>
     /// <returns></returns>
-    public async Task ViewSeasonPage(MessageProperties mp, Week w, bool isAdmin)
+    public static async Task ViewSeasonPage(MessageProperties mp, Week w, bool isAdmin)
     {
         LeagueDBContext dBContext = new();
         Week week = (Week)(await dBContext.FindAsync(typeof(Week), w.WeekId))!;
@@ -138,7 +138,8 @@ internal class ViewSeason : CommandBase
         await dBContext.Entry(week.Season)
             .Collection(s => s.PlayoffWeeks)
             .LoadAsync();
-        mp.Embed = (await week.GetEmbed()).Build();
+        Embed[] embeds = [.. (await week.GetEmbed()).Select(eb => eb.Build())];
+        mp.Embeds = embeds;
         ComponentBuilder buttons = new();
         if (week.WeekNumber != 1) buttons.WithButton("◀", $"{COMMANDNAME}:{week.Season.SeasonNumber}:{week.WeekNumber - 1}");
         if (week.WeekNumber != week.Season.AllWeeks.Count) buttons.WithButton("▶", $"{COMMANDNAME}:{week.Season.SeasonNumber}:{week.WeekNumber + 1}");

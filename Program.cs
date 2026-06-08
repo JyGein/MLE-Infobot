@@ -47,7 +47,7 @@ class Program
         // Note that GatewayIntents.MessageContent is a privileged intent, and requires extra setup in the developer portal.
         DiscordSocketConfig config = new()
         {
-            GatewayIntents = GatewayIntents.AllUnprivileged// | GatewayIntents.MessageContent
+            GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildInvites | GatewayIntents.GuildScheduledEvents // | GatewayIntents.MessageContent
         };
 
         // It is recommended to Dispose of a client when you are finished

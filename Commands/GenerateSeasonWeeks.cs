@@ -9,9 +9,13 @@ using System.Threading.Tasks;
 
 namespace MLE_Infobot.Commands;
 
-internal class CreateSeason : CommandBase
+/// <summary>
+/// just for copy pasting to make more comamnds
+/// </summary>
+internal class GenerateSeasonWeeks : CommandBase
 {
-    const string COMMANDNAME = "create-season";
+    const string COMMANDNAME = "generate-season-weeks";
+
     public override async Task SubscribeCommand(DiscordSocketClient client)
     {
         client.SlashCommandExecuted += CommandExecuted;
@@ -20,7 +24,7 @@ internal class CreateSeason : CommandBase
     {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
-            .WithDescription($"Creates a new season. {Messages.REQUIRESADMIN}")
+            .WithDescription($"Generates all the guaranteed weeks. {Messages.REQUIRESADMIN}")
             .Build());
     }
 
@@ -33,31 +37,42 @@ internal class CreateSeason : CommandBase
             return;
         }
         await slashCommand.DeferAsync(ephemeral: true);
+
         LeagueDBContext dBContext = new();
-        if (await dBContext.Seasons.AnyAsync(s => s.State == Season.SeasonState.Unpublished))
+
+        if (await dBContext.Seasons.FirstOrDefaultAsync(s => s.State == Season.SeasonState.Unpublished) is not Season season)
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
-                mp.Content = "There is already an unpublished season!";
+                mp.Content = $"There is no unpublished season!";
             });
             await dBContext.DisposeAsync();
             return;
         }
-         
-        Season season = new() { SeasonNumber = (!await dBContext.Seasons.AnyAsync()) ? 1 : (await dBContext.Seasons.OrderBy(s => s.SeasonNumber).FirstAsync()).SeasonNumber + 1, State = Season.SeasonState.Unpublished };
 
-        await dBContext.AddAsync(season);
+        try
+        {
+            await season.RandomizeGuaranteedMatches();
+        }
+        catch
+        {
+            await slashCommand.ModifyOriginalResponseAsync((mp) =>
+            {
+                mp.Content = $"Something went wrong generating the season!";
+            });
+            await dBContext.DisposeAsync();
+            throw;
+        }
 
         await dBContext.SaveChangesAsync();
 
-        //await season.RandomizeGuaranteedMatches();
-
-        Console.WriteLine($"Season number {season.SeasonNumber} created.");
-        await slashCommand.ModifyOriginalResponseAsync((mp) =>
+        //Console.WriteLine($"");
+        Week week = await dBContext.Entry(season).Collection(s => s.SeasonWeeks).Query().FirstAsync();
+        await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
         {
-            mp.Content = $"Season number {season.SeasonNumber} sucessfully added to the league! Start adding squads with /add-squad.";
+            mp.Content = "Randomized!";
+            await ViewSeason.ViewSeasonPage(mp, week, true);
         });
-
         await dBContext.DisposeAsync();
     }
 }

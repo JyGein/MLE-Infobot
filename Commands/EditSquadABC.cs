@@ -9,13 +9,16 @@ using System.Threading.Tasks;
 
 namespace MLE_Infobot.Commands;
 
-internal class EditSquadDivision : CommandBase
+/// <summary>
+/// just for copy pasting to make more comamnds
+/// </summary>
+internal class EditSquadABC : CommandBase
 {
-    const string COMMANDNAME = "edit-squad-division";
+    const string COMMANDNAME = "edit-squad-abc";
 
     const string TEAMROLEOPTIONNAME = "team-role";
     const string SQUADNUMBEROPTIONNAME = "squad-number";
-    const string DIVISIONNAMEOPTIONNAME = "division-name";
+    const string ABCOPTIONNAME = "abc-ranking";
 
     public override async Task SubscribeCommand(DiscordSocketClient client)
     {
@@ -25,10 +28,10 @@ internal class EditSquadDivision : CommandBase
     {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
-            .WithDescription($"Edit a squad's division. {Messages.REQUIRESADMIN}")
+            .WithDescription($"Edits a squad's abc ranking. {Messages.REQUIRESADMIN}")
             .AddOption(TEAMROLEOPTIONNAME, ApplicationCommandOptionType.Role, "The discord role of the squad's team.", isRequired: true)
             .AddOption(SQUADNUMBEROPTIONNAME, ApplicationCommandOptionType.Integer, "The number of the squad.", isRequired: true)
-            .AddOption(DIVISIONNAMEOPTIONNAME, ApplicationCommandOptionType.String, "The new division name of the squad.", isRequired: true)
+            .AddOption(ABCOPTIONNAME, ApplicationCommandOptionType.String, "A, B, or C.", isRequired: true)
             .Build());
     }
 
@@ -48,18 +51,18 @@ internal class EditSquadDivision : CommandBase
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
-                mp.Content = "There is not an unpublished season.";
+                mp.Content = $"There is no unpublished season!";
             });
             await dBContext.DisposeAsync();
             return;
         }
 
         IRole teamRole = (IRole)slashCommand.Data.Options.First(o => o.Name == TEAMROLEOPTIONNAME).Value;
-        if (dBContext.Teams.FirstOrDefault(team => team.TeamRoleID == teamRole.Id) is not Team team)
+        if (await dBContext.Teams.FirstOrDefaultAsync(t => t.TeamRoleID == teamRole.Id) is not Team team)
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
-                mp.Content = "That role is not linked to a team!";
+                mp.Content = "That role is not linked to a team.";
             });
             await dBContext.DisposeAsync();
             return;
@@ -76,34 +79,42 @@ internal class EditSquadDivision : CommandBase
             return;
         }
 
-        string newDivisionName = ((string)slashCommand.Data.Options.First(o => o.Name == DIVISIONNAMEOPTIONNAME).Value).Trim();
-        if ((await dBContext.Entry(season).Collection(s => s.Divisions).Query().ToListAsync()).FirstOrDefault(d => d.DivisionName.Equals(newDivisionName, StringComparison.CurrentCultureIgnoreCase)) is not Division division)
+        Squad.ABCRanking abcRanking = Squad.ABCRanking.B;
+        string abcRankingInput = ((string)slashCommand.Data.Options.First(o => o.Name == ABCOPTIONNAME).Value).Trim().ToLower();
+        switch (abcRankingInput)
         {
-            await slashCommand.ModifyOriginalResponseAsync((mp) =>
-            {
-                mp.Content = "That is not a valid division name";
-            });
-            await dBContext.DisposeAsync();
-            return;
+            case "a":
+                abcRanking = Squad.ABCRanking.A;
+                break;
+            case "b":
+                abcRanking = Squad.ABCRanking.B;
+                break;
+            case "c":
+                abcRanking = Squad.ABCRanking.C;
+                break;
+            default:
+                await slashCommand.ModifyOriginalResponseAsync((mp) =>
+                {
+                    mp.Content = "That is not a valid ABC ranking.";
+                });
+                await dBContext.DisposeAsync();
+                return;
         }
 
-        squad.Division = division;
+        squad.ABCRank = abcRanking;
 
         await dBContext.SaveChangesAsync();
 
-        //await season.RandomizeGuaranteedMatches();
-
-        Console.WriteLine($"Squad number {squadNumber} on team {team.TeamName} change to division {division.DivisionName}.");
-        (EmbedBuilder embedBuilder, FileAttachment teamLogo) = await squad.GetDefaultEmbed(true);
-        Embed[] embed = [embedBuilder.Build()];
+        //Console.WriteLine($"");
+        (EmbedBuilder squadEmbed, FileAttachment teamLogo) = await squad.GetDefaultEmbed(true, withABCRank: true);
+        Embed[] embeds = [squadEmbed.Build()];
         List<FileAttachment> teamLogos = [teamLogo];
-        await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
+        await slashCommand.ModifyOriginalResponseAsync((mp) =>
         {
-            mp.Content = $"Squad number {squadNumber} on team {team.TeamName} change to division {division.DivisionName}.";
-            mp.Embeds = embed;
+            mp.Content = "Sucessfully changed squad ranking.";
+            mp.Embeds = embeds;
             mp.Attachments = teamLogos;
         });
-
         await dBContext.DisposeAsync();
     }
 }

@@ -53,12 +53,16 @@ internal class Substitute : CommandBase
 
         if (await dBContext.Seasons.Include(s => s.SeasonWeeks).Include(s => s.PlayoffWeeks).FirstOrDefaultAsync(s => s.State == Season.SeasonState.Started) is not Season season)
         {
-            await slashCommand.ModifyOriginalResponseAsync((mp) =>
+            if (await dBContext.Seasons.Include(s => s.SeasonWeeks).Include(s => s.PlayoffWeeks).FirstOrDefaultAsync(s => s.State == Season.SeasonState.Unpublished) is not Season nextSeason)
             {
-                mp.Content = "There is no current season!";
-            });
-            await dBContext.DisposeAsync();
-            return;
+                await slashCommand.ModifyOriginalResponseAsync((mp) =>
+                {
+                    mp.Content = "There is no current or unpublished season!";
+                });
+                await dBContext.DisposeAsync();
+                return;
+            }
+            season = nextSeason;
         }
 
         Week week = null!;

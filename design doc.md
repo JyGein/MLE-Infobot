@@ -9,7 +9,7 @@ Privately tells the user who that player is playing this week.
 Throws if player is not playing this week.
 
 **squad-matches <team-role: discord role> <squad-number: int>**  
-Privately tells the user who that squad is playing this week.  
+Privately tells the user who that squad is playing each week.  
 Throws if squad does not exist.
 
 **team-matches <team-role: discord role>**  
@@ -71,6 +71,9 @@ Changes the players on a team's squad in the current unpublished season.
 -**edit-squad-division <team-role: discord role> <squad-number: int> <new-division: string>**  
 Changes a squad's division in the current unpublished season.
 
+**edit-squad-abc <team-role: discord role> <squad-number: int> <new-score: A/B/C>**
+Changes a squad's ABC ranking (at B by default).
+
 -**subsitute <team-role: discord role> <squad-number: int> <player: discord user> <sub: discord user> [week-number: int]**  
 Substitutes the player with the sub for the current season. Defaults to the next week.  
 Throws if the sub or player are not in that squad.
@@ -128,12 +131,15 @@ Publishes the next week of the current season. Displays "New week!" message in p
 Semi-Dangerous; private confirmation message.
 
 -**generate-next-season-week [one-to: int] [two-to: int] [three-to: int]**  
-Generate's the next season week's matches. Only works if the next unpublished week of the current season has not been randomized and the previous week has had all of it's matches played.  
+Generates the next season week's matches. Only works if the next unpublished week of the current season has not been randomized and the previous week has had all of it's matches played.  
 The one-to/two-to/three-to optional inputs are for manually setting the player mappings, all three must be set to 1 2 or 3 exclusively, will throw if not inputted properly.
 
 -**generate-next-playoff-week [one-to: int] [two-to: int] [three-to: int]**  
-Generate's the next playoff week's matches. Will start the playoffs if there are no playoff weeks yet. Requires all matches in current or finished weeks of the season to be completed.  
+Generates the next playoff week's matches. Will start the playoffs if there are no playoff weeks yet. Requires all matches in current or finished weeks of the season to be completed.  
 Same throws as generate-next-season-week. 
+
+-**generate-season-weeks**
+Generates all the guaranteed weeks in the unpublished season.
 
 -**submit-match <team: discord role> <squad: int> [week-number: int]**  
 Gives an interaction prompting you to fill out the number of wins and loses for each member of the squad. Defaults to the current week.  

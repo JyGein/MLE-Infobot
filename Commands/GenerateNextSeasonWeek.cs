@@ -77,6 +77,16 @@ internal class GenerateNextSeasonWeek : CommandBase
             season.SeasonWeeks.Add(week);
         }
 
+        if (week.HasBeenGenerated == true)
+        {
+            await slashCommand.ModifyOriginalResponseAsync((mp) =>
+            {
+                mp.Content = "The next week has already been generated!";
+            });
+            await dBContext.DisposeAsync();
+            return;
+        }
+
         if (await dBContext.Entry(season).Collection(s => s.SeasonWeeks).Query().FirstOrDefaultAsync(w => w.WeekNumber == week.WeekNumber - 1) is Week previousWeek)
         {
             if (await dBContext.Entry(previousWeek).Collection(w => w.Matches).Query().AnyAsync(m => m.Winner == Match.MatchState.Undecided))
@@ -186,7 +196,7 @@ internal class GenerateNextSeasonWeek : CommandBase
         await dBContext.SaveChangesAsync();
 
         Console.WriteLine($"Generated season {season.SeasonNumber} Week {week.WeekNumber}.");
-        Embed[] embeds = [(await week.GetEmbed()).Build()];
+        Embed[] embeds = [.. (await week.GetEmbed()).Select(eb => eb.Build())];
         await slashCommand.ModifyOriginalResponseAsync((mp) =>
         {
             mp.Content = $"Generated season {season.SeasonNumber} Week {week.WeekNumber}.";

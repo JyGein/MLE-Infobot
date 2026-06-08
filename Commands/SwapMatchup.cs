@@ -185,7 +185,7 @@ internal class SwapMatchup : CommandBase
         await dBContext.SaveChangesAsync();
 
         Console.WriteLine($"Swapped {team1.TeamName} squad {squad1.SquadNumber} and {team2.TeamName} squad {squad2.SquadNumber}'s matchups in week {week.WeekNumber} of season {season.SeasonNumber}.");
-        Embed[] embeds = [(await week.GetDefaultEmbed()).Build()];
+        Embed[] embeds = [.. (await week.GetEmbed()).Select(eb => eb.Build())];
         await slashCommand.ModifyOriginalResponseAsync(async (mp) =>
         {
             mp.Content = $"Swapped {team1.TeamName} squad {squad1.SquadNumber} and {team2.TeamName} squad {squad2.SquadNumber}'s matchups in week {week.WeekNumber} of season {season.SeasonNumber}.";

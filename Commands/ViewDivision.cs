@@ -93,7 +93,7 @@ internal class ViewDivision : CommandBase
         List<FileAttachment> teamLogos = [];
         if (division != null)
         {
-            (List<EmbedBuilder> divisionEmbeds, List<FileAttachment> divisionTeamLogos) = await division.GetSquadsEmbeds();
+            (List<EmbedBuilder> divisionEmbeds, List<FileAttachment> divisionTeamLogos) = await division.GetSquadsEmbeds(withABCRank: isAdmin);
             embeds = [.. embeds.Concat(divisionEmbeds.Select(eb => eb.Build()))];
             teamLogos = [.. teamLogos.Concat(divisionTeamLogos)];
         }

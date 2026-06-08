@@ -3,22 +3,21 @@ using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
-using System.Data.SqlTypes;
-using System.Drawing;
 using System.Linq;
-using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 
 namespace MLE_Infobot.Commands;
 
-internal class AddSquad : CommandBase
+/// <summary>
+/// just for copy pasting to make more comamnds
+/// </summary>
+internal class EditSquadPlayers : CommandBase
 {
-    const string COMMANDNAME = "add-squad";
+    const string COMMANDNAME = "edit-squad-players";
 
-    const string DIVISIONOPTIONNAME = "division";
     const string TEAMROLEOPTIONNAME = "team-role";
+    const string SQUADNUMBEROPTIONNAME = "squad-number";
     const string PLAYER1OPTIONNAME = "player1";
     const string PLAYER2OPTIONNAME = "player2";
     const string PLAYER3OPTIONNAME = "player3";
@@ -33,9 +32,9 @@ internal class AddSquad : CommandBase
     {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
-            .WithDescription($"Adds a new squad to the next season. {Messages.REQUIRESADMIN}")
-            .AddOption(DIVISIONOPTIONNAME, ApplicationCommandOptionType.String, "The name of the division to add the squad to.", isRequired: true)
+            .WithDescription($"Edits a squad's abc ranking. {Messages.REQUIRESADMIN}")
             .AddOption(TEAMROLEOPTIONNAME, ApplicationCommandOptionType.Role, "The discord role of the squad's team.", isRequired: true)
+            .AddOption(SQUADNUMBEROPTIONNAME, ApplicationCommandOptionType.Integer, "The number of the squad.", isRequired: true)
             .AddOption(PLAYER1OPTIONNAME, ApplicationCommandOptionType.User, "The first player of this squad.", isRequired: true)
             .AddOption(PLAYER2OPTIONNAME, ApplicationCommandOptionType.User, "The second player of this squad.", isRequired: true)
             .AddOption(PLAYER3OPTIONNAME, ApplicationCommandOptionType.User, "The third player of this squad.", isRequired: true)
@@ -49,43 +48,44 @@ internal class AddSquad : CommandBase
         if (slashCommand.Data.Name != COMMANDNAME) return;
         if (!IsAdmin(slashCommand))
         {
-            await slashCommand.RespondAsync(Messages.REQUIRESADMIN, ephemeral: true);
+            await slashCommand.RespondAsync("You must be an admin to run this command!", ephemeral: true);
             return;
         }
         await slashCommand.DeferAsync(ephemeral: true);
-        LeagueDBContext dBContext = new();
-        if (!await dBContext.Seasons.AnyAsync(s => s.State == Season.SeasonState.Unpublished))
-        {
-            await slashCommand.ModifyOriginalResponseAsync((mp) =>
-            {
-                mp.Content = "There isn't an unpublished season!";
-            });
-            await dBContext.DisposeAsync();
-            return;
-        }
 
-        Season season = await dBContext.Seasons
-            .Include(s => s.Divisions)
-            .ThenInclude(d => d.Squads)
-            .ThenInclude(s => s.Team)
-            .FirstAsync(s => s.State == Season.SeasonState.Unpublished);
-        string divisionName = ((string)slashCommand.Data.Options.First(o => o.Name == DIVISIONOPTIONNAME)).Trim();
-        if (season.Divisions.FirstOrDefault(d => d.DivisionName.Equals(divisionName, StringComparison.OrdinalIgnoreCase)) is not Division division)
+        LeagueDBContext dBContext = new();
+
+        if (await dBContext.Seasons.FirstOrDefaultAsync(s => s.State == Season.SeasonState.Unpublished) is not Season season)
         {
-            await slashCommand.ModifyOriginalResponseAsync((mp) =>
+            if (await dBContext.Seasons.FirstOrDefaultAsync(s => s.State == Season.SeasonState.Started) is not Season currentSeason)
             {
-                mp.Content = "That is not a valid Division name!";
-            });
-            await dBContext.DisposeAsync();
-            return;
+                await slashCommand.ModifyOriginalResponseAsync((mp) =>
+                {
+                    mp.Content = $"There is no unpublished or current season!";
+                });
+                await dBContext.DisposeAsync();
+                return;
+            }
+            season = currentSeason;
         }
 
         IRole teamRole = (IRole)slashCommand.Data.Options.First(o => o.Name == TEAMROLEOPTIONNAME).Value;
-        if (await dBContext.Teams.FirstOrDefaultAsync(team => team.TeamRoleID == teamRole.Id) is not Team team)
+        if (await dBContext.Teams.FirstOrDefaultAsync(t => t.TeamRoleID == teamRole.Id) is not Team team)
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
-                mp.Content = "That role is not linked to a team!";
+                mp.Content = "That role is not linked to a team.";
+            });
+            await dBContext.DisposeAsync();
+            return;
+        }
+
+        long squadNumber = (long)slashCommand.Data.Options.First(o => o.Name == SQUADNUMBEROPTIONNAME).Value;
+        if ((await dBContext.Entry(season).Collection(s => s.Divisions).Query().Include(d => d.Squads).ToListAsync()).SelectMany(d => d.Squads).FirstOrDefault(s => s.TeamId == team.TeamId && s.SquadNumber == squadNumber) is not Squad squad)
+        {
+            await slashCommand.ModifyOriginalResponseAsync((mp) =>
+            {
+                mp.Content = "That is not a valid squad number";
             });
             await dBContext.DisposeAsync();
             return;
@@ -99,10 +99,16 @@ internal class AddSquad : CommandBase
         {
             subs.Add((IUser)optionData.Value);
         }
+
+        await dBContext.Entry(squad).Collection(s => s.PlayerIDs).LoadAsync();
+        await dBContext.Entry(squad).Collection(s => s.SubstituteIDs).LoadAsync();
+        squad.PlayerIDs.ForEach(async playerId => dBContext.Entry(playerId).State = EntityState.Deleted);
+        squad.PlayerIDs.Clear();
+        squad.SubstituteIDs.ForEach(async subId => dBContext.Entry(subId).State = EntityState.Deleted);
+        squad.SubstituteIDs.Clear();
+
         string warnings = "";
 
-        int squadNumber = season.Squads.Count(sq => sq.Team == team) + 1;
-        Squad squad = new() { Division = division, SquadNumber = squadNumber, Team = team };
         foreach (IUser player in players)
         {
             if (squad.PlayerIDs.Any(sp => sp == player.Id))
@@ -112,6 +118,7 @@ internal class AddSquad : CommandBase
             await dBContext.UpdateUserEntry(player);
             squad.PlayerIDs.Add((player.Id, squad));
         }
+
         foreach (IUser sub in subs)
         {
             if (squad.PlayerIDs.Any(sp => sp == sub.Id) || squad.SubstituteIDs.Any(sp => sp == sub.Id))
@@ -121,6 +128,7 @@ internal class AddSquad : CommandBase
             await dBContext.UpdateUserEntry(sub);
             squad.SubstituteIDs.Add((sub.Id, squad));
         }
+
         foreach (IUser player in players.Concat(subs))
         {
             if (!Program.Guild.GetUser(player.Id).Roles.Any(r => r.Id == teamRole.Id))
@@ -129,47 +137,12 @@ internal class AddSquad : CommandBase
             }
         }
 
-        foreach (Squad anotherSquad in season.Squads)
-        {
-            foreach (IUser player in players)
-            {
-                if (anotherSquad.PlayerIDs.Any(sp => sp == player.Id))
-                {
-                    warnings += $"{player.GlobalName} is already on {anotherSquad.Team.TeamName} - Squad {anotherSquad.SquadNumber} as a player.\n";
-                }
-                if (anotherSquad.SubstituteIDs.Any(sp => sp == player.Id))
-                {
-                    warnings += $"{player.GlobalName} is already on {anotherSquad.Team.TeamName} - Squad {anotherSquad.SquadNumber} as a substitute.\n";
-                }
-            }
-            foreach (IUser player in subs)
-            {
-                if (anotherSquad.PlayerIDs.Any(sp => sp == player.Id))
-                {
-                    warnings += $"{player.GlobalName} is already on {anotherSquad.Team.TeamName} - Squad {anotherSquad.SquadNumber} as a player.\n";
-                }
-            }
-        }
-
-        foreach (Squad divisionSquads in division.Squads)
-        {
-            if (divisionSquads.TeamId == squad.TeamId)
-            {
-                warnings += $"Squad {divisionSquads.SquadNumber} is from the same team as Squad {squad.SquadNumber} in {division.DivisionName} division.";
-            }
-        }
-
-        division.Squads.Add(squad);
         await dBContext.SaveChangesAsync();
-        dBContext.Entry(season).State = EntityState.Detached;
-        dBContext.Entry(squad).State = EntityState.Detached;
-        await dBContext.DisposeAsync();
-        //await season.RandomizeGuaranteedMatches();
 
-        Console.WriteLine($"Squad number {squadNumber} created with {player1.Id}, {player2.Id}, and {player3.Id} as players and {string.Join(", ", subs.Select(s => s.Id.ToString()))} as sub(s).");
-        (EmbedBuilder embedBuilder, FileAttachment teamLogo) = await squad.GetDefaultEmbed();
-        Embed[] embeds = [embedBuilder.Build()];
-        List<FileAttachment> fileAttachments = [teamLogo];
+        //Console.WriteLine($"");
+        (EmbedBuilder squadEmbed, FileAttachment teamLogo) = await squad.GetDefaultEmbed(true, withABCRank: true);
+        Embed[] embeds = [squadEmbed.Build()];
+        List<FileAttachment> teamLogos = [teamLogo];
         if (warnings != "")
         {
             warnings = warnings.Trim();
@@ -185,9 +158,10 @@ internal class AddSquad : CommandBase
         }
         await slashCommand.ModifyOriginalResponseAsync((mp) =>
         {
-            mp.Content = $"Squad number {squadNumber} created!";
+            mp.Content = "Sucessfully changed squad players.";
             mp.Embeds = embeds;
-            mp.Attachments = fileAttachments;
+            mp.Attachments = teamLogos;
         });
+        await dBContext.DisposeAsync();
     }
 }

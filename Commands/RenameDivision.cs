@@ -51,12 +51,7 @@ internal class RenameDivision : CommandBase
             await dBContext.DisposeAsync();
             return;
         }
-        if (!await dBContext.Seasons.AnyAsync(s => s.State == Season.SeasonState.Unpublished))
-        {
-            await slashCommand.RespondAsync("There isn't an unpublished season!", ephemeral: true);
-            await dBContext.DisposeAsync();
-            return;
-        }
+
         await slashCommand.DeferAsync(ephemeral: true);
 
         string oldDivisionName = ((string)slashCommand.Data.Options.First(o => o.Name == OLDDIVISIONOPTIONNAME)).Trim();
