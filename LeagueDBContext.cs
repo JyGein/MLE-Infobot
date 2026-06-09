@@ -424,7 +424,7 @@ internal class Division
     public int SeasonId { get; set; }
     public required Season Season { get; set; }
 
-    public async Task<(List<EmbedBuilder>, List<FileAttachment>)> GetSquadsEmbeds(bool withABCRank = false)
+    public async Task<(List<EmbedBuilder>, List<FileAttachment>)> GetSquadsEmbeds(bool withABCRank = false, bool withoutMatchScore = false)
     {
         LeagueDBContext dBContext = new();
         Division division = (Division)(await dBContext.FindAsync(GetType(), DivisionId))!;
@@ -443,7 +443,7 @@ internal class Division
         else potentiallySortedSquads = [.. potentiallySortedSquads.OrderBy(s => s.ABCRank)];
         foreach (Squad s in potentiallySortedSquads)
         {
-            (EmbedBuilder embed, FileAttachment teamLogo) = await s.GetDefaultEmbed(withABCRank: withABCRank);
+            (EmbedBuilder embed, FileAttachment teamLogo) = await s.GetDefaultEmbed(withABCRank: withABCRank, withoutMatchScore: withoutMatchScore);
             embeds.Add(embed);
             teamLogos.Add(teamLogo);
         }
@@ -469,6 +469,8 @@ internal class Squad
     public List<SubstituteSquadPlayer> SubstituteIDs { get; set; } = [];
     public ABCRanking ABCRank { get; set; } = ABCRanking.B;
     [NotMapped]
+    public int Points => MatchWins * 3 + MatchTies;
+    [NotMapped]
     public int MatchWins => Matches.Count(m => m.WinningSquad == this) + NumByes;
     [NotMapped]
     public int MatchLosses => Matches.Count(m => m.Winner != Match.MatchState.Undecided && m.Winner != Match.MatchState.Tie && m.WinningSquad != this);
@@ -477,7 +479,7 @@ internal class Squad
     [NotMapped]
     public int GameWins => Matches.Sum(m => m.HomeSquad == this ? m.HomeGameWins : m.AwayGameWins);
     [NotMapped]
-    public int GameLosses => Matches.Sum(m => m.HomeSquad == this ? m.AwayGameWins : m.HomeGameWins);
+    public int ClashWins => Matches.Sum(m => m.HomeSquad == this ? m.HomeClashWins : m.AwayClashWins);
     [NotMapped]
     public Season Season => Division.Season;
     [NotMapped]
@@ -485,9 +487,9 @@ internal class Squad
     [NotMapped]
     public List<Match> CompletedMatches => [.. Matches.Where(m => m.Winner != Match.MatchState.Undecided)];
     [NotMapped]
-    public int NumByes => Season.AllWeeks.Where(w => w.HasBeenGenerated == true).Count() - Matches.Count;
+    public int NumByes => Season.SeasonWeeks.Count(w => w.HasBeenGenerated == true) - Season.SeasonWeeks.SelectMany(w => w.Matches.Where(m => m.AwaySquad == this || m.HomeSquad == this)).Count();
 
-    public async Task<(EmbedBuilder, FileAttachment)> GetDefaultEmbed(bool withDivision = false, bool withABCRank = false)
+    public async Task<(EmbedBuilder, FileAttachment)> GetDefaultEmbed(bool withDivision = false, bool withABCRank = false, bool withoutMatchScore = false)
     {
         LeagueDBContext dBContext = new();
         Squad squad = (Squad)(await dBContext.FindAsync(GetType(), SquadId))!;
@@ -507,7 +509,7 @@ internal class Squad
             .Reference(d => d.Season)
             .LoadAsync();
         bool showRecord = false;
-        if (squad.Season.State != Season.SeasonState.Unpublished)
+        if (squad.Season.State != Season.SeasonState.Unpublished && !withoutMatchScore)
         {
             await dBContext.Entry(squad.Season).Collection(s => s.SeasonWeeks).Query().Include(w => w.Matches).LoadAsync();
             await dBContext.Entry(squad.Season).Collection(s => s.PlayoffWeeks).Query().Include(w => w.Matches).LoadAsync();
@@ -633,10 +635,10 @@ internal class Squad
                 }
             }
         }
-        //tiebreaker 1 2 and 3; match wins, opp win%, game wins
+        //tiebreaker 1 and 2; points (series wins = 3 series ties = 1), Opp Win %
         static float GetOpponentWinPer(Squad squad) 
-            => squad.Matches.Select(m => m.HomeSquad == squad ? m.AwaySquad : m.HomeSquad).Select(s => (s.MatchLosses + s.MatchTies) != 0 ? s.MatchWins / ((float)s.MatchLosses + s.MatchTies) : 0).Average();
-        squadsToOrder = [.. squadsToOrder.OrderByDescending(s => s.MatchWins).ThenByDescending(s => s.MatchTies).ThenByDescending(GetOpponentWinPer).ThenByDescending(s => s.GameWins)];
+            => squad.CompletedMatches.Select(m => m.HomeSquad == squad ? m.AwaySquad : m.HomeSquad).Select(s => s.CompletedMatches.Count != 0 ? s.MatchWins / (float)s.CompletedMatches.Count : 0).Average();
+        squadsToOrder = [.. squadsToOrder.OrderByDescending(s => s.Points).ThenByDescending(GetOpponentWinPer)];
         Squad? previousSquad = null;
         foreach (Squad squad in squadsToOrder)
         {
@@ -647,7 +649,7 @@ internal class Squad
             else
             {
                 KeyValuePair<int, List<Squad>> previousGroup = rankedSquads.First(kv => kv.Value.Contains(previousSquad));
-                if (previousSquad.MatchWins == squad.MatchWins && previousSquad.MatchTies == squad.MatchTies && GetOpponentWinPer(previousSquad) == GetOpponentWinPer(squad) && previousSquad.GameWins == squad.GameWins)
+                if (previousSquad.Points == squad.Points && GetOpponentWinPer(previousSquad) == GetOpponentWinPer(squad))
                 {
                     rankedSquads[previousGroup.Key].Add(squad);
                 }
@@ -659,7 +661,7 @@ internal class Squad
             previousSquad = squad;
         }
         Random rnd = new(squadsToOrder.Sum(s => s.SquadId));
-        //tiebreaker 4 & 5; head-to-head, random
+        //tiebreaker 3; head-to-head
         if (!rankedSquads.All(kv => kv.Value.Count == 1))
         {
             rankedSquads = rankedSquads.OrderBy(kv => kv.Key).ToDictionary();
@@ -695,23 +697,50 @@ internal class Squad
                 if (!goToCommonOpponentRecord)
                 {
                     count = kv.Key;
-                    IOrderedEnumerable<Squad> orderedSquads = headToHeadRecord.Keys.OrderByDescending(s => headToHeadRecord[s]).ThenByDescending(s => rnd.Next());
+                    IOrderedEnumerable<Squad> orderedSquads = headToHeadRecord.Keys.OrderByDescending(s => headToHeadRecord[s]);
+                    previousSquad = null;
                     foreach (Squad squad in orderedSquads)
                     {
-                        rankedSquads[count] = [squad];
-                        count++;
+                        if (previousSquad == null)
+                        {
+                            rankedSquads[count] = [squad];
+                        }
+                        else
+                        {
+                            KeyValuePair<int, List<Squad>> previousGroup = rankedSquads.First(kv => kv.Value.Contains(previousSquad));
+                            if (headToHeadRecord[squad] == headToHeadRecord[previousSquad])
+                            {
+                                rankedSquads[previousGroup.Key].Add(squad);
+                            }
+                            else
+                            {
+                                rankedSquads[previousGroup.Key + previousGroup.Value.Count] = [squad];
+                                count++;
+                            }
+                        }
+                        previousSquad = squad;
                     }
+                    //foreach (Squad squad in orderedSquads)
+                    //{
+                    //    rankedSquads[count] = [squad];
+                    //    count++;
+                    //}
                 }
                 else
                 {
                     Dictionary<Squad, List<float>> commonOpponentsRecordAveragedOnce = [];
                     count = 0;
+                    bool noCommonOpponents = false;
                     foreach(Squad squad in kv.Value)
                     {
                         foreach (Squad opposingSquad in kv.Value.Skip(count+1))
                         {
-                            List<Squad> commonOpponents = [.. squad.CompletedMatches.Select(m => m.HomeSquad == squad ? m.AwaySquad : m.HomeSquad).Intersect(opposingSquad.Matches.Select(m => m.HomeSquad == opposingSquad ? m.AwaySquad : m.HomeSquad))];
-                            
+                            List<Squad> commonOpponents = [.. squad.CompletedMatches.Select(m => m.HomeSquad == squad ? m.AwaySquad : m.HomeSquad).Intersect(opposingSquad.CompletedMatches.Select(m => m.HomeSquad == opposingSquad ? m.AwaySquad : m.HomeSquad))];
+                            if (commonOpponents.Count == 0)
+                            {
+                                noCommonOpponents = true;
+                                break;
+                            }
                             List<Match> squadMatches = [.. commonOpponents.SelectMany(cos => cos.CompletedMatches.Where(m => m.Squads.Contains(squad)))];
                             float squadAverage = squadMatches.Count(m => m.WinningSquad != null) != 0 ? squadMatches.Count(m => m.WinningSquad == squad) / (float)squadMatches.Count(m => m.WinningSquad != null) : 0;
                             commonOpponentsRecordAveragedOnce[squad] = commonOpponentsRecordAveragedOnce.TryGetValue(squad, out List<float>? squadAverages) ? [.. squadAverages.Append(squadAverage)] : [squadAverage];
@@ -720,19 +749,71 @@ internal class Squad
                             float opposingSquadAverage = opposingSquadMatches.Count(m => m.WinningSquad != null) != 0 ? opposingSquadMatches.Count(m => m.WinningSquad == opposingSquad) / (float)opposingSquadMatches.Count(m => m.WinningSquad != null) : 0;
                             commonOpponentsRecordAveragedOnce[opposingSquad] = commonOpponentsRecordAveragedOnce.TryGetValue(opposingSquad, out List<float>? opposingSquadAverages) ? [.. opposingSquadAverages.Append(opposingSquadAverage)] : [opposingSquadAverage];
                         }
+                        if (noCommonOpponents)
+                        {
+                            break;
+                        }
                         count++;
+                    }
+                    if (noCommonOpponents)
+                    {
+                        continue;
                     }
                     count = kv.Key;
-                    IOrderedEnumerable<Squad> orderedSquads = commonOpponentsRecordAveragedOnce.Keys.OrderByDescending(s => commonOpponentsRecordAveragedOnce[s].Average()).ThenByDescending(s => rnd.Next());
+                    IOrderedEnumerable<Squad> orderedSquads = commonOpponentsRecordAveragedOnce.Keys.OrderByDescending(s => commonOpponentsRecordAveragedOnce[s].Average());
+                    previousSquad = null;
                     foreach (Squad squad in orderedSquads)
                     {
-                        rankedSquads[count] = [squad];
-                        count++;
+                        if (previousSquad == null)
+                        {
+                            rankedSquads[count] = [squad];
+                        }
+                        else
+                        {
+                            KeyValuePair<int, List<Squad>> previousGroup = rankedSquads.First(kv => kv.Value.Contains(previousSquad));
+                            if (commonOpponentsRecordAveragedOnce[squad].Average() == commonOpponentsRecordAveragedOnce[previousSquad].Average())
+                            {
+                                rankedSquads[previousGroup.Key].Add(squad);
+                            }
+                            else
+                            {
+                                rankedSquads[previousGroup.Key + previousGroup.Value.Count] = [squad];
+                                count++;
+                            }
+                        }
+                        previousSquad = squad;
                     }
+                    //foreach (Squad squad in orderedSquads)
+                    //{
+                    //    rankedSquads[count] = [squad];
+                    //    count++;
+                    //}
+                }
+            }
+        }
+        //tiebreaker 4 5 & 6; match wins, game wins, random
+        if (!rankedSquads.All(kv => kv.Value.Count == 1))
+        {
+            rankedSquads = rankedSquads.OrderBy(kv => kv.Key).ToDictionary();
+            Dictionary<int, List<Squad>> rankedSquadsToIterate = rankedSquads.ToDictionary();
+            foreach (KeyValuePair<int, List<Squad>> kv in rankedSquadsToIterate)
+            {
+                if (kv.Value.Count == 1) continue;
+                int count = kv.Key;
+                IOrderedEnumerable<Squad> orderedSquads = kv.Value.OrderByDescending(s => s.GameWins).ThenByDescending(s => s.ClashWins).ThenBy(_ => rnd.Next());
+                foreach (Squad squad in orderedSquads)
+                {
+                    rankedSquads[count] = [squad];
+                    count++;
                 }
             }
         }
         List<Squad> sortedSquads = [.. rankedSquads.OrderBy(kv => kv.Key).Select(kv => yourContextSquadsToOrder.First(s => s.SquadId == kv.Value.Single().SquadId))];
+        //foreach (Squad squad in rankedSquads.OrderBy(kv => kv.Key).Select(kv => kv.Value.Single()))
+        //{
+        //    await dBContext.Entry(squad).Reference(s => s.Team).LoadAsync();
+        //    Console.WriteLine($"{squad.Team.TeamName} - Squad {squad.SquadNumber}, Week Wins: {squad.MatchWins}, OW%: {GetOpponentWinPer(squad)}, Match wins: {squad.GameWins}, Game wins: {squad.ClashWins}");
+        //}
         await dBContext.DisposeAsync();
         return sortedSquads;
     }

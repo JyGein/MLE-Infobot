@@ -74,7 +74,7 @@ internal class PublishDivisions : CommandBase
             List<FileAttachment> teamLogos = [];
             if (division != null)
             {
-                (List<EmbedBuilder> divisionEmbeds, List<FileAttachment> divisionTeamLogos) = await division.GetSquadsEmbeds();
+                (List<EmbedBuilder> divisionEmbeds, List<FileAttachment> divisionTeamLogos) = await division.GetSquadsEmbeds(withoutMatchScore: true);
                 embeds = [.. embeds.Concat(divisionEmbeds.Select(eb => eb.Build()))];
                 teamLogos = [.. teamLogos.Concat(divisionTeamLogos)];
             }
