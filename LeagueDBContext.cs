@@ -553,7 +553,7 @@ internal class Squad
         List<List<EmbedFieldBuilder>> fieldss = [[]];
         foreach (Match match in matches)
         {
-            if (fieldss.Last().Count > 21) fieldss.Add([]);
+            if (fieldss.Last().Count > 20) fieldss.Add([]);
             await dBContext.Entry(match)
                 .Collection(m => m.Games)
                 .LoadAsync();
@@ -602,10 +602,10 @@ internal class Squad
             if (!doneFirstEmbed)
             {
                 embed.WithTitle($"{squad.Team.TeamName} - Squad {squad.SquadNumber}\nSeason {season.SeasonNumber}{(fieldss.First().Count != 0 ? "\n==================================================" : "")}")
-                    .WithColor((await Program.Guild.GetRoleAsync(squad.Team.TeamRoleID)).Color)
                     .WithThumbnailUrl($"attachment://{teamLogo.FileName}");
                 doneFirstEmbed = true;
             }
+            embed.WithColor((await Program.Guild.GetRoleAsync(squad.Team.TeamRoleID)).Color);
             embeds.Add(embed);
         }
         return (embeds, teamLogo);

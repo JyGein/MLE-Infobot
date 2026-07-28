@@ -39,6 +39,9 @@ internal abstract partial class CommandBase
     [GeneratedRegex("\\w+:(\\d+):(\\d+)")]
     internal static partial Regex ViewSeasonInteractionIDPattern();
 
+    [GeneratedRegex("\\w+:(\\d+):(\\d+)")]
+    internal static partial Regex LeaderboardInteractionIDPattern();
+
     [GeneratedRegex("\\w+:(\\d+)")]
     internal static partial Regex SubmitMatchButtonIDPattern();
 

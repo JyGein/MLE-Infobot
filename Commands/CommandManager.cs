@@ -28,6 +28,7 @@ internal class CommandManager
         new GenerateNextPlayoffWeek(),
         new GenerateNextSeasonWeek(),
         new GenerateSeasonWeeks(),
+        new Leaderboard(),
         new MyMatch(),
         new PublishDivisions(),
         new PublishSeason(),
@@ -62,6 +63,7 @@ internal class CommandManager
         //new GenerateNextPlayoffWeek(),
         //new GenerateNextSeasonWeek(),
         //new GenerateSeasonWeeks(),
+        //new Leaderboard(),
         //new MyMatch(),
         //new PublishDivisions(),
         //new PublishSeason(),
@@ -79,6 +81,8 @@ internal class CommandManager
         //new ViewSeason(),
         //new ViewTeam()
         ];
+
+    public static bool subscribedCommands = false;
     public static async Task CreateCommands(DiscordSocketClient client)
     {
         //We only care about the server that this bot will be deployed into, the released bot will have the MLE server id in their environment.
@@ -86,11 +90,17 @@ internal class CommandManager
         //only uncomment when a command's parameters change
         //await guild.DeleteApplicationCommandsAsync();
 
-        client.SlashCommandExecuted += async (slashCommand) => { Console.WriteLine($"{DateTime.Now:T}::Recieved command {slashCommand.CommandName}."); };
 
-        foreach (CommandBase command in CommandsToSubscribe)
+        if (!subscribedCommands)
         {
-            await command.SubscribeCommand(client);
+            client.SlashCommandExecuted += async (slashCommand) => { Console.WriteLine($"{DateTime.Now:T}::Recieved command {slashCommand.CommandName}."); };
+
+            foreach (CommandBase command in CommandsToSubscribe)
+            {
+                await command.SubscribeCommand(client);
+            }
+
+            subscribedCommands = true;
         }
 
         foreach (CommandBase command in CommandsToRegister)

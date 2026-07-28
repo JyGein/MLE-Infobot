@@ -63,7 +63,7 @@ internal class SubmitMatch : CommandBase
         Week week = null!;
         if (slashCommand.Data.Options.FirstOrDefault(o => o.Name == WEEKNUMBEROPTIONNAME) is SocketSlashCommandDataOption weekNumberOption)
         {
-            if (season.AllWeeks.FirstOrDefault(w => w.WeekNumber == (long)weekNumberOption.Value && week.HasBeenGenerated) is not Week chosenWeek)
+            if (season.AllWeeks.FirstOrDefault(w => w.WeekNumber == (long)weekNumberOption.Value && w.HasBeenGenerated) is not Week chosenWeek)
             {
                 await slashCommand.ModifyOriginalResponseAsync((mp) =>
                 {
