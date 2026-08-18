@@ -170,6 +170,9 @@ internal class GenerateNextSeasonWeek : CommandBase
         {
             List<Squad> pairableSquads = [.. (await dBContext.Entry(season).Collection(s => s.Divisions).Query().Include(d => d.Squads).ThenInclude(s => s.Team).ToListAsync()).SelectMany(d => d.Squads).Where(s => !week.Matches.Any(m => m.HomeSquadId == s.SquadId || m.AwaySquadId == s.SquadId))];
             List<Squad> rankedSquads = [..(await Squad.OrderByTiebreakers(pairableSquads)).OrderByDescending(s => s.NumByes)];
+            await dBContext.Entry(season).Collection(s => s.SeasonWeeks).LoadAsync();
+            await dBContext.Entry(season).Collection(s => s.PlayoffWeeks).LoadAsync();
+            season.AllWeeks.ForEach(async w => await dBContext.Entry(w).Collection(w => w.Matches).Query().Include(m => m.HomeSquad).Include(m => m.AwaySquad).LoadAsync());
             while (rankedSquads.Count > 1)
             {
                 Squad squad = rankedSquads.Pop();
