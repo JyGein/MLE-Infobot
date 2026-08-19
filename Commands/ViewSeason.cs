@@ -144,5 +144,6 @@ internal class ViewSeason : CommandBase
         if (week.WeekNumber != 1) buttons.WithButton("◀", $"{COMMANDNAME}:{week.Season.SeasonNumber}:{week.WeekNumber - 1}");
         if (week.WeekNumber != week.Season.AllWeeks.Count) buttons.WithButton("▶", $"{COMMANDNAME}:{week.Season.SeasonNumber}:{week.WeekNumber + 1}");
         mp.Components = buttons.Build();
+        await dBContext.DisposeAsync();
     }
 }

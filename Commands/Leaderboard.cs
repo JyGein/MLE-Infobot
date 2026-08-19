@@ -141,7 +141,38 @@ internal class Leaderboard : CommandBase
             .Query()
             .Include(d => d.Squads)
             .LoadAsync();
-        List<Squad> squads = await Squad.OrderByTiebreakers(season.Squads);
+        await dBContext.Entry(season)
+            .Collection(s => s.PlayoffWeeks)
+            .LoadAsync();
+        List<Squad> squads = [];
+        if (season.PlayoffWeeks.Count == 0)
+        {
+            squads = await Squad.OrderByTiebreakers(season.Squads);
+        }
+        else
+        {
+            season.PlayoffWeeks.ForEach(async w => await dBContext.Entry(w).Collection(w => w.Matches).Query().Include(m => m.HomeSquad).Include(m => m.AwaySquad).LoadAsync());
+            List<Squad> allSquads = await Squad.OrderByTiebreakers(season.Squads);
+            foreach (Week pw in season.PlayoffWeeks)
+            {
+                switch (pw.State)
+                {
+                    case Week.WeekState.Unpublished:
+                        continue;
+                    case Week.WeekState.Finished:
+                        List<Squad> winningSquads = await Squad.OrderByTiebreakers([.. pw.Matches.Select(m => m.WinningSquad!).Intersect(allSquads)]);
+                        winningSquads.ForEach(s => allSquads.Remove(s));
+                        squads = [.. squads.Concat(winningSquads)];
+                        goto case Week.WeekState.Current;
+                    case Week.WeekState.Current:
+                        List<Squad> nextSquads = await Squad.OrderByTiebreakers([.. pw.Matches.SelectMany(m => m.Squads).Intersect(allSquads)]);
+                        nextSquads.ForEach(s => allSquads.Remove(s));
+                        squads = [.. squads.Concat(nextSquads)];
+                        break;
+                }
+            }
+            squads = [.. squads.Concat(allSquads)];
+        }
         squads = [.. squads.Skip((int)((page - 1) * 5))];
         if (squads.Count > 5) squads = [.. squads.Take(5)];
         Embed[] embeds = [];
@@ -155,6 +186,7 @@ internal class Leaderboard : CommandBase
         ComponentBuilder buttons = new();
         if (page != 1) buttons.WithButton("◀", $"{COMMANDNAME}:{season.SeasonNumber}:{page - 1}");
         if (s.Squads.Count > page * 5) buttons.WithButton("▶", $"{COMMANDNAME}:{season.SeasonNumber}:{page + 1}");
+        await dBContext.DisposeAsync();
         return (embeds, fileAttachments, buttons);
     }
 }
