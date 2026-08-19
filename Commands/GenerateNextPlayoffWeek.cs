@@ -3,6 +3,7 @@ using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Principal;
@@ -21,6 +22,7 @@ internal class GenerateNextPlayoffWeek : CommandBase
     const string ONETOOPTIONNAME = "one-to";
     const string TWOTOOPTIONNAME = "two-to";
     const string THREETOOPTIONNAME = "three-to";
+    const int TOPCUTSIZE = 8;
 
     public override async Task SubscribeCommand(DiscordSocketClient client)
     {
@@ -154,16 +156,29 @@ internal class GenerateNextPlayoffWeek : CommandBase
                 playoffSquads.Add(bestDivisionSquad);
                 allSquads.Remove(bestDivisionSquad);
             }
-            allSquads = await Squad.OrderByTiebreakers(allSquads);
-            playoffSquads.AddRange(allSquads.Take(8 - playoffSquads.Count));
             playoffSquads = await Squad.OrderByTiebreakers(playoffSquads);
-            newWeek = new() { Season = season, State = Week.WeekState.Unpublished, WeekNumber = season.AllWeeks.OrderByDescending(w => w.WeekNumber).First().WeekNumber + 1, Players123Mappings = [.. playerMappingInts.Select(i => (i, newWeek))] };
-            while (playoffSquads.Count > 1)
+            allSquads = await Squad.OrderByTiebreakers(allSquads);
+            playoffSquads.AddRange(allSquads.Take(TOPCUTSIZE - playoffSquads.Count));
+            //playoffSquads = await Squad.OrderByTiebreakers(playoffSquads); //division squads should be higher seeds
+            for (int i = 1; i <= TOPCUTSIZE; i++)
             {
-                newWeek.Matches.Add(new() { Week = newWeek, HomeSquad = playoffSquads.Pop(), AwaySquad = playoffSquads.Last() });
-                playoffSquads.Remove(playoffSquads.Last());
+                playoffSquads[i - 1].PlayoffSeed = i;
             }
-
+            List<int> seeds = [1];
+            while (seeds.Count < TOPCUTSIZE) //this only works if topcutsize is a power of 2
+            {
+                int newSize = seeds.Count * 2;
+                for (int i = 0; i < newSize; i += 2)
+                {
+                    seeds.Insert(i + 1, newSize - (seeds[i] - 1));
+                }
+            }
+            //seeds.ForEach(i => Program.BotLog(i.ToString())); //debug line
+            newWeek = new() { Season = season, State = Week.WeekState.Unpublished, WeekNumber = season.AllWeeks.OrderByDescending(w => w.WeekNumber).First().WeekNumber + 1, Players123Mappings = [.. playerMappingInts.Select(i => (i, newWeek))] };
+            while (seeds.Count > 1)
+            {
+                newWeek.Matches.Add(new() { Week = newWeek, HomeSquad = playoffSquads[seeds.Pop() - 1], AwaySquad = playoffSquads[seeds.Pop() - 1] });
+            }
         }
         else
         {
@@ -204,7 +219,9 @@ internal class GenerateNextPlayoffWeek : CommandBase
             newWeek = new() { Season = season, State = Week.WeekState.Unpublished, Players123Mappings = [.. playerMappingInts.Select(i => (i, newWeek))], WeekNumber = previousWeek.WeekNumber + 1 };
             while (winningSquads.Count > 1)
             {
-                newWeek.Matches.Add(new() { Week = newWeek, HomeSquad = winningSquads.Pop(), AwaySquad = winningSquads.Pop() });
+                List<Squad> nextSquads = [winningSquads.Pop(), winningSquads.Pop()];
+                if (nextSquads.All(s => s.PlayoffSeed != null)) nextSquads = [.. nextSquads.OrderBy(s => s.PlayoffSeed)]; //makes sure higher seed is home (if they are both seeded)
+                newWeek.Matches.Add(new() { Week = newWeek, HomeSquad = nextSquads.Pop(), AwaySquad = nextSquads.Pop() });
             }
         }
 

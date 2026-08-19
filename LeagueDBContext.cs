@@ -467,6 +467,7 @@ internal class Squad
     public required Division Division { get; set; }
     public List<PlayerSquadPlayer> PlayerIDs { get; set; } = [];
     public List<SubstituteSquadPlayer> SubstituteIDs { get; set; } = [];
+    public int? PlayoffSeed { get; set; } = null;
     public ABCRanking ABCRank { get; set; } = ABCRanking.B;
     [NotMapped]
     public int Points => MatchWins * 3 + MatchTies;
@@ -532,9 +533,15 @@ internal class Squad
         }
         string record = showRecord ? $"\n{squad.MatchWins}-{squad.MatchLosses}{(squad.MatchTies > 0 ? $"-{squad.MatchTies}" : "")}" : "";
         FileAttachment teamLogo = new(squad.Team.TeamLogoURL, isThumbnail: true);
+        Color color = Color.Default;
+        try
+        {
+            color = (await Program.Guild.GetRoleAsync(squad.Team.TeamRoleID)).Color;
+        }
+        catch { }
         return (new EmbedBuilder()
             .WithTitle($"{squad.Team.TeamName} - Squad {squad.SquadNumber}" + (withDivision ? $" - {squad.Division.DivisionName} Division" : "") + record + (withABCRank ? $"\nRank {squad.ABCRank}" : ""))
-            .WithColor((await Program.Guild.GetRoleAsync(squad.Team.TeamRoleID)).Color)
+            .WithColor(color)
             .WithThumbnailUrl($"attachment://{teamLogo.FileName}")
             .WithFields(fields), teamLogo);
     }
