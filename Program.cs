@@ -85,6 +85,11 @@ class Program
         return Task.CompletedTask;
     }
 
+    internal static void BotLog(string message, bool isDebug = true)
+    {
+        Console.WriteLine($"{DateTime.Now:T}::{(isDebug ? "DEBUG::" : "")}{message}");
+    }
+
     // The Ready event indicates that the client has opened a
     // connection and it is now safe to access the cache.
     private async static Task ReadyAsync()

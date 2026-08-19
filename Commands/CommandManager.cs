@@ -93,7 +93,7 @@ internal class CommandManager
 
         if (!subscribedCommands)
         {
-            client.SlashCommandExecuted += async (slashCommand) => { Console.WriteLine($"{DateTime.Now:T}::Recieved command {slashCommand.CommandName}."); };
+            client.SlashCommandExecuted += async (slashCommand) => { Program.BotLog($"Recieved command {slashCommand.CommandName}.", false); };
 
             foreach (CommandBase command in CommandsToSubscribe)
             {
