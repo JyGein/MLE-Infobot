@@ -8,7 +8,7 @@ Throws if the user is not on a squad.
 Privately tells the user who that player is playing this week.  
 Throws if player is not playing this week.
 
-**squad-matches <team-role: discord role> <squad-number: int>**  
+--**squad-matches <team-role: discord role> <squad-number: int>**  
 Privately tells the user who that squad is playing each week.  
 Throws if squad does not exist.
 
@@ -78,8 +78,8 @@ Changes a squad's ABC ranking (at B by default).
 Substitutes the player with the sub for the current season. Defaults to the next week.  
 Throws if the sub or player are not in that squad.
 
-**unsubsitute <team-role: discord role> <squad-number: int> <player: discord user> [week-number: int]**  
-Unsubstitutes the player with a sub for the current season. Defaults to the next week.  
+--**unsubsitute <team-role: discord role> <squad-number: int> <player: discord user> [week-number: int]**  
+Unsubstitutes the sub for the current season. Defaults to the next week.  
 Throws if the sub or player are not in that squad.
 
 -**remove-squad <team-role: discord role> <squad-number: int>**  
@@ -145,7 +145,7 @@ Generates all the guaranteed weeks in the unpublished season.
 Gives an interaction prompting you to fill out the number of wins and loses for each member of the squad. Defaults to the current week.  
 Throws if squad doesn't exist.
 
-**finish-season publish-channel: discord channel**  
+--**finish-season publish-channel: discord channel**  
 Sets the current season to finished.
 Throws if there are incomplete matches.
 

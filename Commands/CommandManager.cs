@@ -42,6 +42,7 @@ internal class CommandManager
         new Substitute(),
         new SwapHomeAway(),
         new SwapMatchup(),
+        new Unsubstitute(),
         new ViewDivision(),
         new ViewSeason(),
         new ViewTeam()
@@ -74,9 +75,10 @@ internal class CommandManager
         //new RenameDivision(),
         //new SquadMatches(),
         //new SubmitMatch(),
-        //new Substitute(),
+        ///new Substitute(),
         //new SwapHomeAway(),
         //new SwapMatchup(),
+        ///new Unsubstitute(),
         //new ViewDivision(),
         //new ViewSeason(),
         //new ViewTeam()

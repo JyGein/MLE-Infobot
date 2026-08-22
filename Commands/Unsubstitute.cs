@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,13 +13,12 @@ namespace MLE_Infobot.Commands;
 /// <summary>
 /// just for copy pasting to make more comamnds
 /// </summary>
-internal class Substitute : CommandBase
+internal class Unsubstitute : CommandBase
 {
-    const string COMMANDNAME = "substitute";
+    const string COMMANDNAME = "unsubstitute";
 
     const string TEAMROLEOPTIONNAME = "team-role";
     const string SQUADNNUMBEROPTIONNAME = "squad-number";
-    const string PLAYEROPTIONNAME = "player";
     const string SUBOPTIONNAME = "substitute";
     const string WEEKNUMBEROPTIONNAME = "week-number";
 
@@ -30,17 +30,17 @@ internal class Substitute : CommandBase
     {
         await guild.CreateApplicationCommandAsync(new SlashCommandBuilder()
             .WithName(COMMANDNAME)
-            .WithDescription($"Substitutes a player for the next week. {Messages.REQUIRESADMIN}")
+            .WithDescription($"Unsubstitutes a player for the next week. {Messages.REQUIRESADMIN}")
             .AddOption(TEAMROLEOPTIONNAME, ApplicationCommandOptionType.Role, "The role of the team of the squad.", isRequired: true)
             .AddOption(SQUADNNUMBEROPTIONNAME, ApplicationCommandOptionType.Integer, "The number of the squad.", isRequired: true)
-            .AddOption(PLAYEROPTIONNAME, ApplicationCommandOptionType.User, "The player to be subbed out.", isRequired: true)
-            .AddOption(SUBOPTIONNAME, ApplicationCommandOptionType.User, "The substitute to be subbed in.", isRequired: true)
-            .AddOption(WEEKNUMBEROPTIONNAME, ApplicationCommandOptionType.Integer, "The week this sub will take place. Defaults to the next week.")
+            .AddOption(SUBOPTIONNAME, ApplicationCommandOptionType.User, "The substitute to be unsubbed.", isRequired: true)
+            .AddOption(WEEKNUMBEROPTIONNAME, ApplicationCommandOptionType.Integer, "The week to unsub. Defaults to the next week.")
             .Build());
     }
 
     internal async Task CommandExecuted(SocketSlashCommand slashCommand)
     {
+        Program.BotLog("meow");
         if (slashCommand.Data.Name != COMMANDNAME) return;
         if (!IsAdmin(slashCommand))
         {
@@ -48,6 +48,7 @@ internal class Substitute : CommandBase
             return;
         }
         await slashCommand.DeferAsync(ephemeral: true);
+
 
         LeagueDBContext dBContext = new();
 
@@ -138,59 +139,22 @@ internal class Substitute : CommandBase
         await dBContext.Entry(match).Collection(m => m.Substitutions).LoadAsync();
         await dBContext.Entry(match).Collection(m => m.Games).LoadAsync();
         IUser sub = (IUser)slashCommand.Data.Options.First(o => o.Name == SUBOPTIONNAME).Value;
-        if (!squad.SubstituteIDs.Any(ssp => ssp.PlayerID == sub.Id))
+
+        if (match.Substitutions.FirstOrDefault(s => s.SubstituteID == sub.Id) is not Substitution substitution)
         {
             await slashCommand.ModifyOriginalResponseAsync((mp) =>
             {
-                mp.Content = "That sub is not on the squad!";
-            });
-            await dBContext.DisposeAsync();
-            return;
-        }
-        if (match.Substitutions.Any(s => s.SubstituteID == sub.Id))
-        {
-            await slashCommand.ModifyOriginalResponseAsync((mp) =>
-            {
-                mp.Content = "That sub is already substituting this week!"; //doesn't check other matches this week
+                mp.Content = "That sub is not subbed in!";
             });
             await dBContext.DisposeAsync();
             return;
         }
 
-        IUser player = (IUser)slashCommand.Data.Options.First(o => o.Name == PLAYEROPTIONNAME).Value;
-        if (match.Games.Count > 0 && !match.Games.Any(g => g.HomePlayerIDWithSub == player.Id || g.AwayPlayerIDWithSub == player.Id))
-        {
-            await slashCommand.ModifyOriginalResponseAsync((mp) =>
-            {
-                mp.Content = "That player is not playing this week!";
-            });
-            await dBContext.DisposeAsync();
-            return;
-        }
-        else if (!squad.PlayerIDs.Any(psp => psp.PlayerID == player.Id))
-        {
-            await slashCommand.ModifyOriginalResponseAsync((mp) =>
-            {
-                mp.Content = "That player is not playing for that squad!";
-            });
-            await dBContext.DisposeAsync();
-            return;
-        }
-        else if (match.Substitutions.Any(s => s.PlayerID == player.Id))
-        {
-            await slashCommand.ModifyOriginalResponseAsync((mp) =>
-            {
-                mp.Content = "That player had already been subbed out!";
-            });
-            await dBContext.DisposeAsync();
-            return;
-        }
-
-        match.Substitutions.Add(new() { Match = match, PlayerID = player.Id, SubstituteID = sub.Id });
+        dBContext.Entry(substitution).State = EntityState.Deleted;
 
         await dBContext.SaveChangesAsync();
 
-        string message = $"{sub.GlobalName ?? sub.Username} is substituting for {player.GlobalName ?? player.Username} in Week {week.WeekNumber}.";
+        string message = $"{sub.GlobalName ?? sub.Username} has been unsubbed in Week {week.WeekNumber}.";
         Console.WriteLine(message);
         Embed[] embeds = [(await match.GetDefaultEmbed()).Build()];
         await slashCommand.ModifyOriginalResponseAsync((mp) =>
