@@ -45,6 +45,7 @@ internal class CommandManager
         new Unsubstitute(),
         new ViewDivision(),
         new ViewSeason(),
+        new ViewSquad(),
         new ViewTeam()
         ];
     //should be commented out as necessary when building, when ran will update each command not commented out in a slow operation.
@@ -81,6 +82,7 @@ internal class CommandManager
         ///new Unsubstitute(),
         //new ViewDivision(),
         //new ViewSeason(),
+        new ViewSquad(),
         //new ViewTeam()
         ];
 
